@@ -1,0 +1,7 @@
+.venv/
+.gradio/
+__pycache__/
+bin/
+obj/
+*.user
+PhotoLog-output/
