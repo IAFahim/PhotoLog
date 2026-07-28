@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     readonly ObservableCollection<PhotoItem> _items = [];
     PhotoItem? _preview;
     CancellationTokenSource? _cts;
-    (DateOnly? Date, string Addr) _rendered;
+    (DateOnly? Date, string Addr, string Style) _rendered;
     bool _sizeWarned;
 
     public MainWindow() : this(null) { }
@@ -28,8 +28,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         PhotoGrid.ItemsSource = _items;
-        StyleBox.ItemsSource = Core.StyleNames;
-        StyleBox.SelectedIndex = 0; // outlined + drop shadow is the default look
+        StyleCombo.ItemsSource = Core.Styles;
+        StyleCombo.SelectedIndex = 0; // outlined + drop shadow is the default look
         OutBox.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "PhotoLog-output");
         // Mica/acrylic needs a transparent window; where the compositor can't do it (most X11),
         // drop back to the opaque theme background so the window isn't see-through.
@@ -46,17 +46,8 @@ public partial class MainWindow : Window
     // replaces only y/m/d, never the photo's clock (Core.DateLine does the combining)
     DateOnly? OverrideDate => DatePart.SelectedDate is { } d ? DateOnly.FromDateTime(d) : null;
 
-    // global: the stamp style is never gated by selection
-    Core.StampStyle Style => (Core.StampStyle)Math.Max(0, StyleBox.SelectedIndex);
-
-    async void Style_Changed(object? sender, SelectionChangedEventArgs e) => await Refresh();
-
-    async void BrowseOut_Click(object? sender, RoutedEventArgs e)
-    {
-        var picked = await StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions { Title = "Pick output folder", AllowMultiple = false });
-        if (picked.Count > 0) OutBox.Text = picked[0].TryGetLocalPath() ?? picked[0].Path.LocalPath;
-    }
+    // global rendering setting — unlike date/address it applies to every preview and export
+    string StampStyle => StyleCombo.SelectedItem as string ?? Core.Styles[0];
 
     async void Browse_Click(object? sender, RoutedEventArgs e)
     {
@@ -76,14 +67,23 @@ public partial class MainWindow : Window
 
     void ClearDate_Click(object? sender, RoutedEventArgs e) => DatePart.SelectedDate = null;
 
-    // date/address changes re-render every preview but must never touch the selection
+    // date/address/style changes re-render every preview but must never touch the selection
     async void DateChanged(object? sender, SelectionChangedEventArgs e) => await Refresh();
+    async void StyleChanged(object? sender, SelectionChangedEventArgs e) => await Refresh();
     async void Refresh_Click(object? sender, RoutedEventArgs e) => await Refresh();
 
     // leaving the address box only costs a re-render when the text actually changed
     async void Addr_LostFocus(object? sender, RoutedEventArgs e)
     {
-        if ((OverrideDate, AddrBox.Text ?? "") != _rendered) await Refresh();
+        if ((OverrideDate, AddrBox.Text ?? "", StampStyle) != _rendered) await Refresh();
+    }
+
+    async void OutBrowse_Click(object? sender, RoutedEventArgs e)
+    {
+        var picked = await StorageProvider.OpenFolderPickerAsync(
+            new FolderPickerOpenOptions { Title = "Pick output folder", AllowMultiple = false });
+        if (picked.Count == 0) return;
+        OutBox.Text = picked[0].TryGetLocalPath() ?? picked[0].Path.LocalPath;
     }
 
     async Task Refresh()
@@ -92,9 +92,9 @@ public partial class MainWindow : Window
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
         Status.Text = $"{_items.Count} image(s) loaded — rendering previews…";
-        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", Style, _cts.Token);
+        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", StampStyle, _cts.Token);
         if (_cts.IsCancellationRequested) return;
-        _rendered = (OverrideDate, AddrBox.Text ?? "");
+        _rendered = (OverrideDate, AddrBox.Text ?? "", StampStyle);
         Status.Text = $"{_items.Count} image(s) loaded.";
         if (_preview is not null) ShowPreview(_preview);
     }
@@ -124,13 +124,14 @@ public partial class MainWindow : Window
         UpdateCount();
         Status.Text = $"{_items.Count} image(s) loaded — rendering previews…";
 
-        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", Style, ct);
+        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", StampStyle, ct);
         if (ct.IsCancellationRequested) return;
-        _rendered = (OverrideDate, AddrBox.Text ?? "");
+        _rendered = (OverrideDate, AddrBox.Text ?? "", StampStyle);
         Status.Text = $"{_items.Count} image(s) loaded.";
     }
 
-    static async Task RenderThumbs(IReadOnlyList<PhotoItem> items, DateOnly? date, string addr, Core.StampStyle style, CancellationToken ct)
+    static async Task RenderThumbs(IReadOnlyList<PhotoItem> items, DateOnly? date, string addr, string style,
+                                   CancellationToken ct)
     {
         try
         {
@@ -198,7 +199,7 @@ public partial class MainWindow : Window
 
     async Task RestampOne(PhotoItem item)
     {
-        await RenderThumbs([item], OverrideDate, AddrBox.Text ?? "", Style, CancellationToken.None);
+        await RenderThumbs([item], OverrideDate, AddrBox.Text ?? "", StampStyle, CancellationToken.None);
         if (_preview == item) ShowPreview(item);
     }
 
@@ -306,7 +307,7 @@ public partial class MainWindow : Window
         if (outDir.Length == 0) { Result.Text = "Set an output folder first."; return; }
         var date = OverrideDate;
         var addr = AddrBox.Text ?? "";
-        var style = Style;
+        var style = StampStyle;
         ApplyBtn.IsEnabled = SaveOneBtn.IsEnabled = false;
         Result.Text = $"Writing {items.Count} image(s) to {outDir}…";
         try

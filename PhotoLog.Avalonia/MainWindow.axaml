@@ -25,7 +25,7 @@
       <TextBlock x:Name="Status" Classes="hint"
                  Text="Pick a folder with Browse, or type its path and press Enter."/>
       <Border Classes="card">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
           <TextBlock Classes="label" Text="Override date:"/>
           <CalendarDatePicker x:Name="DatePart" Width="150"
@@ -39,15 +39,11 @@
         <TextBox Grid.Column="3" x:Name="AddrBox" AcceptsReturn="True" Height="72"
                  LostFocus="Addr_LostFocus"
                  PlaceholderText="1521 Meander Rd&#10;Timmonsville SC 29161&#10;United States"/>
-        <StackPanel Grid.Column="4" Margin="8,0,0,0" VerticalAlignment="Center" Spacing="6">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <TextBlock Classes="label" Text="Stamp style:"/>
-            <ComboBox x:Name="StyleBox" Width="230" SelectedIndex="0"
-                      ToolTip.Tip="Applies to every image, selected or not"
-                      SelectionChanged="Style_Changed"/>
-          </StackPanel>
-          <Button Content="Refresh previews" HorizontalAlignment="Right" Click="Refresh_Click"/>
-        </StackPanel>
+        <ComboBox Grid.Column="4" x:Name="StyleCombo" Width="240" Margin="18,0,0,0" VerticalAlignment="Center"
+                  ToolTip.Tip="Stamp style — applies to every image, selected or not"
+                  SelectionChanged="StyleChanged"/>
+        <Button Grid.Column="5" Content="Refresh previews" Margin="8,0,0,0" VerticalAlignment="Center"
+                Click="Refresh_Click"/>
       </Grid>
       </Border>
     </StackPanel>
@@ -57,8 +53,7 @@
       <Grid ColumnDefinitions="Auto,*,Auto,Auto">
         <TextBlock Classes="label" Text="Output folder:" Margin="0,0,8,0"/>
         <TextBox Grid.Column="1" x:Name="OutBox"/>
-        <Button Grid.Column="2" x:Name="OutBrowseBtn" Content="Browse…" Margin="8,0,0,0"
-                Click="BrowseOut_Click"/>
+        <Button Grid.Column="2" Content="Browse…" Margin="8,0,0,0" Click="OutBrowse_Click"/>
         <Button Grid.Column="3" x:Name="ApplyBtn" Content="Apply" Margin="8,0,0,0" Classes="accent"
                 Click="Apply_Click"/>
       </Grid>

@@ -84,17 +84,13 @@ internal static class Core
     public static string[] StampLines(Image img, string path, DateOnly? overrideDate, string? addr, string? caption = null) =>
         [DateLine(img, path, overrideDate), .. Lines(addr), .. Lines(caption)];
 
-    /// Global rendering setting — unlike date/address it applies to every image, selected or not.
-    public enum StampStyle { OutlinedShadow, SoftShadow, PlainWhite }
+    // presets mirror the Gradio reference's stamp(); [0] is the user-mandated default.
+    // Unlike date/address this is global - it applies to every image, selected or not.
+    public static readonly string[] Styles = ["Outlined + drop shadow (classic)", "Soft shadow", "Plain white"];
 
-    public static readonly string[] StyleNames =
-        ["Outlined + drop shadow (classic)", "Soft shadow", "Plain white"];
-
-    static readonly Color ShadowColor = Color.FromRgb(50, 50, 50);  // #323232
-    static readonly Color StrokeColor = Color.FromRgb(60, 60, 60);  // #3C3C3C
-
-    public static void Stamp(Image img, string[] lines, StampStyle style = StampStyle.OutlinedShadow)
+    public static void Stamp(Image img, string[] lines, string? style = null)
     {
+        style ??= Styles[0];
         var size = Math.Max(14, img.Width / 30);
         var font = Family.CreateFont(size);
         var text = string.Join('\n', lines);
@@ -112,22 +108,19 @@ internal static class Core
         };
         img.Mutate(c =>
         {
-            if (style != StampStyle.PlainWhite)
-                c.DrawText(At(off, off), text, ShadowColor); // drop shadow
-            if (style == StampStyle.OutlinedShadow)
-            {
-                // Pillow's stroke_width=N grows the glyph N px outward; an ImageSharp pen strokes
-                // centred on the outline, so width 2N gives the same outward growth. Drawn as its
-                // own dark pass underneath so the white fill stays full weight on top.
-                var stroke = Math.Max(1, size / 16);
-                c.DrawText(At(0, 0), text, Brushes.Solid(StrokeColor), Pens.Solid(StrokeColor, stroke * 2));
-            }
-            c.DrawText(At(0, 0), text, Color.White);
+            if (style != Styles[2])
+                c.DrawText(At(off, off), text, Color.FromRgb(50, 50, 50)); // drop shadow
+            if (style == Styles[0])
+                c.DrawText(At(0, 0), text, Brushes.Solid(Color.White),
+                           Pens.Solid(Color.FromRgb(60, 60, 60), Math.Max(1, size / 16)));
+            else
+                c.DrawText(At(0, 0), text, Color.White);
         });
     }
 
     /// Stamped preview, decoded small (JPEG scaled DCT) so a folder scan stays fast.
-    public static (byte[] Jpeg, string Date) Thumb(string path, DateOnly? overrideDate, string? addr, string? caption = null, StampStyle style = StampStyle.OutlinedShadow, int maxSide = 768)
+    public static (byte[] Jpeg, string Date) Thumb(string path, DateOnly? overrideDate, string? addr,
+                                                   string? caption = null, string? style = null, int maxSide = 768)
     {
         using var img = Image.Load(new DecoderOptions { TargetSize = new Size(maxSide, maxSide) }, path);
         img.Mutate(c => c.AutoOrient());
@@ -141,7 +134,8 @@ internal static class Core
     }
 
     /// Full-resolution stamped copy into outDir. Originals are never touched.
-    public static string Export(string src, string name, string outDir, DateOnly? overrideDate, string? addr, string? caption = null, StampStyle style = StampStyle.OutlinedShadow)
+    public static string Export(string src, string name, string outDir, DateOnly? overrideDate, string? addr,
+                                string? caption = null, string? style = null)
     {
         Directory.CreateDirectory(outDir);
         using var img = Image.Load(src);
@@ -289,21 +283,14 @@ internal static class Core
             Check(Caption.Tidy("  A quiet street at sunset.\nExtra rambling here <end_of_turn>") == "A quiet street at sunset",
                   "caption tidy: one line, no template debris, no trailing period");
 
-            // stamp styles: three visibly different renderings of the same text, default = outlined
-            var styled = new Dictionary<StampStyle, string>();
-            foreach (var st in Enum.GetValues<StampStyle>())
-                styled[st] = Export(found[0].Path, $"style-{st}.jpg", outDir, jul28, "1521 Meander Rd", "", st);
-            foreach (var (a, b) in new[] { (StampStyle.OutlinedShadow, StampStyle.SoftShadow),
-                                           (StampStyle.OutlinedShadow, StampStyle.PlainWhite),
-                                           (StampStyle.SoftShadow, StampStyle.PlainWhite) })
-                Check(MaxDiff(styled[a], styled[b], 0.5f, 0f, 1f, 0.35f) > 30, $"style {a} differs from {b} in the stamp area");
-            var byDefault = Export(found[0].Path, "style-default.jpg", outDir, jul28, "1521 Meander Rd", "");
-            Check(MaxDiff(byDefault, styled[StampStyle.OutlinedShadow], 0f, 0f, 1f, 1f) == 0,
-                  "default style is outlined + drop shadow");
-            Check(StyleNames.Length == Enum.GetValues<StampStyle>().Length && StyleNames[0].StartsWith("Outlined"),
-                  "three named presets, classic first");
-
             CaptionCheck(found[0].Path);
+
+            // stamp styles: the three presets render pairwise differently; default == Styles[0]
+            var sj = Styles.Select(s => Thumb(found[0].Path, null, "", style: s).Jpeg).ToArray();
+            Check(!sj[0].SequenceEqual(sj[1]) && !sj[1].SequenceEqual(sj[2]) && !sj[0].SequenceEqual(sj[2]),
+                  "three stamp styles render pairwise differently");
+            Check(Thumb(found[0].Path, null, "").Jpeg.SequenceEqual(sj[0]),
+                  "default style is outlined + drop shadow");
 
             Console.WriteLine("selfcheck OK");
             return 0;
