@@ -83,12 +83,16 @@ internal static class Core
         return a.Length == 0 ? [date] : [date, .. a.ReplaceLineEndings("\n").Split('\n')];
     }
 
-    public static void Stamp(Image img, string[] lines)
+    // presets mirror the Gradio reference's stamp(); [0] is the user-mandated default
+    public static readonly string[] Styles = ["Outlined + drop shadow (classic)", "Soft shadow", "Plain white"];
+
+    public static void Stamp(Image img, string[] lines, string? style = null)
     {
+        style ??= Styles[0];
         var size = Math.Max(14, img.Width / 30);
         var font = Family.CreateFont(size);
         var text = string.Join('\n', lines);
-        var off = Math.Max(1, size / 12);
+        var off = Math.Max(1, size / 10);
         float x = img.Width - size / 2, y = size / 2;
         RichTextOptions At(float dx, float dy) => new(font)
         {
@@ -100,31 +104,41 @@ internal static class Core
             // 1.33 is the closest single constant; exact only if you measure font metrics per size.
             LineSpacing = 4f / 3f,
         };
-        img.Mutate(c => c.DrawText(At(off, off), text, Color.Black)   // soft shadow
-                         .DrawText(At(0, 0), text, Color.White));
+        img.Mutate(c =>
+        {
+            if (style != Styles[2])
+                c.DrawText(At(off, off), text, Color.FromRgb(50, 50, 50)); // drop shadow
+            if (style == Styles[0])
+                c.DrawText(At(0, 0), text, Brushes.Solid(Color.White),
+                           Pens.Solid(Color.FromRgb(60, 60, 60), Math.Max(1, size / 16)));
+            else
+                c.DrawText(At(0, 0), text, Color.White);
+        });
     }
 
     /// Stamped preview, decoded small (JPEG scaled DCT) so a folder scan stays fast.
-    public static (byte[] Jpeg, string Date) Thumb(string path, DateOnly? overrideDate, string? addr, int maxSide = 768)
+    public static (byte[] Jpeg, string Date) Thumb(string path, DateOnly? overrideDate, string? addr,
+                                                   int maxSide = 768, string? style = null)
     {
         using var img = Image.Load(new DecoderOptions { TargetSize = new Size(maxSide, maxSide) }, path);
         img.Mutate(c => c.AutoOrient());
         if (img.Width > maxSide || img.Height > maxSide)
             img.Mutate(c => c.Resize(new ResizeOptions { Size = new Size(maxSide, maxSide), Mode = ResizeMode.Max }));
         var lines = StampLines(img, path, overrideDate, addr);
-        Stamp(img, lines);
+        Stamp(img, lines, style);
         using var ms = new MemoryStream();
         img.SaveAsJpeg(ms, new JpegEncoder { Quality = 88 });
         return (ms.ToArray(), lines[0]);
     }
 
     /// Full-resolution stamped copy into outDir. Originals are never touched.
-    public static string Export(string src, string name, string outDir, DateOnly? overrideDate, string? addr)
+    public static string Export(string src, string name, string outDir, DateOnly? overrideDate, string? addr,
+                                string? style = null)
     {
         Directory.CreateDirectory(outDir);
         using var img = Image.Load(src);
         img.Mutate(c => c.AutoOrient());
-        Stamp(img, StampLines(img, src, overrideDate, addr));
+        Stamp(img, StampLines(img, src, overrideDate, addr), style);
         var dest = Path.Combine(outDir, name);
         img.Save(dest); // encoder from extension; ImageSharp re-writes the EXIF profile it read
         return dest;
@@ -245,6 +259,13 @@ internal static class Core
             Check(File.Exists(selExport) && MaxDiff(found[0].Path, selExport, 0.5f, 0f, 1f, 0.35f) > 60,
                   "scoped export wrote the checked photo's stamp");
             Check(Fields(false, null, null) == Fields(false, jul28, "x"), "nothing selected -> override changes nothing");
+
+            // stamp styles: the three presets render pairwise differently; default == Styles[0]
+            var sj = Styles.Select(s => Thumb(found[0].Path, null, "", style: s).Jpeg).ToArray();
+            Check(!sj[0].SequenceEqual(sj[1]) && !sj[1].SequenceEqual(sj[2]) && !sj[0].SequenceEqual(sj[2]),
+                  "three stamp styles render pairwise differently");
+            Check(Thumb(found[0].Path, null, "").Jpeg.SequenceEqual(sj[0]),
+                  "default style is outlined + drop shadow");
 
             Console.WriteLine("selfcheck OK");
             return 0;

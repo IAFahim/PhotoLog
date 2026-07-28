@@ -22,7 +22,7 @@
       </Grid>
       <TextBlock x:Name="Status" Opacity="0.8"
                  Text="Pick a folder with Browse, or type its path and press Enter."/>
-      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" Margin="0,4,0,0">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="0,4,0,0">
         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
           <TextBlock Text="Override date:" VerticalAlignment="Center"/>
           <CalendarDatePicker x:Name="DatePart" Width="150"
@@ -36,17 +36,20 @@
         <TextBox Grid.Column="3" x:Name="AddrBox" AcceptsReturn="True" Height="72"
                  LostFocus="Addr_LostFocus"
                  PlaceholderText="1521 Meander Rd&#10;Timmonsville SC 29161&#10;United States"/>
-        <Button Grid.Column="4" Content="Refresh previews" Margin="6,0,0,0" VerticalAlignment="Center"
+        <ComboBox Grid.Column="4" x:Name="StyleCombo" Width="240" Margin="16,0,0,0" VerticalAlignment="Center"
+                  ToolTip.Tip="Stamp style" SelectionChanged="StyleChanged"/>
+        <Button Grid.Column="5" Content="Refresh previews" Margin="6,0,0,0" VerticalAlignment="Center"
                 Click="Refresh_Click"/>
       </Grid>
     </StackPanel>
 
     <!-- footer -->
     <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="0,10,0,0">
-      <Grid ColumnDefinitions="Auto,*,Auto">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
         <TextBlock Text="Output folder:" VerticalAlignment="Center" Margin="0,0,6,0"/>
         <TextBox Grid.Column="1" x:Name="OutBox"/>
-        <Button Grid.Column="2" x:Name="ApplyBtn" Content="Apply" Margin="6,0,0,0" Classes="accent"
+        <Button Grid.Column="2" Content="Browse…" Margin="6,0,0,0" Click="OutBrowse_Click"/>
+        <Button Grid.Column="3" x:Name="ApplyBtn" Content="Apply" Margin="6,0,0,0" Classes="accent"
                 Click="Apply_Click"/>
       </Grid>
       <TextBlock x:Name="Result" Opacity="0.85" TextWrapping="Wrap"/>
