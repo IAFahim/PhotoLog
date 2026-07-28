@@ -79,9 +79,9 @@ JS = """
   });
 }
 """
-HARVEST_SCAN = "(f, d, a, s, sel) => [f, d, a, s, window.plSel ? window.plSel() : '']"
-HARVEST_APPLY = "(s, sel, o, d, a) => [s, window.plSel ? window.plSel() : '', o, d, a]"
-HARVEST_APPLY_WEB = "(s, sel, d, a) => [s, window.plSel ? window.plSel() : '', d, a]"
+HARVEST_SCAN = "(f, d, a, y, s, sel) => [f, d, a, y, s, window.plSel ? window.plSel() : '']"
+HARVEST_APPLY = "(s, sel, o, d, a, y) => [s, window.plSel ? window.plSel() : '', o, d, a, y]"
+HARVEST_APPLY_WEB = "(s, sel, d, a, y) => [s, window.plSel ? window.plSel() : '', d, a, y]"
 
 
 def exif_dt(img: Image.Image, path: Path) -> datetime:
@@ -102,14 +102,20 @@ def stamp_lines(img: Image.Image, path: Path, custom_date=None, custom_addr: str
     return [dt.strftime(DATE_FMT)] + custom_addr.strip().splitlines()
 
 
-def stamp(img: Image.Image, lines: list[str]) -> Image.Image:
+STYLES = ["Outlined + drop shadow (classic)", "Soft shadow", "Plain white"]
+
+
+def stamp(img: Image.Image, lines: list[str], style: str = STYLES[0]) -> Image.Image:
     size = max(14, img.width // 30)
     text = "\n".join(lines)
     kw = dict(font=ImageFont.load_default(size), anchor="ra", align="right", spacing=size // 3)
     d = ImageDraw.Draw(img)
-    x, y, off = img.width - size // 2, size // 2, max(1, size // 12)
-    d.multiline_text((x + off, y + off), text, fill=(0, 0, 0), **kw)  # soft shadow
-    d.multiline_text((x, y), text, fill=(255, 255, 255), **kw)
+    x, y, off = img.width - size // 2, size // 2, max(1, size // 10)
+    if style != "Plain white":
+        d.multiline_text((x + off, y + off), text, fill=(50, 50, 50), **kw)  # drop shadow
+    stroke = max(1, size // 16) if style == STYLES[0] else 0
+    d.multiline_text((x, y), text, fill=(255, 255, 255),
+                     stroke_width=stroke, stroke_fill=(60, 60, 60), **kw)
     return img
 
 
@@ -150,21 +156,22 @@ def pick_folder(cur: str) -> str:
     return r.stdout.strip() or cur
 
 
-def scan(folder: str, custom_date=None, custom_addr: str = "", st: dict | None = None, sel_csv: str = ""):
+def scan(folder: str, custom_date=None, custom_addr: str = "", style: str = STYLES[0],
+         st: dict | None = None, sel_csv: str = ""):
     root = Path(folder).expanduser() if folder else None
     if not root or not root.is_dir():
         return grid_html(None), None, "Pick a folder with Browse, or type its path and press Enter."
     paths = sorted((p for p in root.rglob("*") if p.suffix.lower() in EXTS), key=lambda p: p.name)
-    return _scan_paths(paths, custom_date, custom_addr, st, sel_csv)
+    return _scan_paths(paths, custom_date, custom_addr, style, st, sel_csv)
 
 
 def scan_upload(files: list[str] | None, custom_date=None, custom_addr: str = "",
-                st: dict | None = None, sel_csv: str = ""):
+                style: str = STYLES[0], st: dict | None = None, sel_csv: str = ""):
     paths = sorted((Path(f) for f in files or [] if Path(f).suffix.lower() in EXTS), key=lambda p: p.name)
-    return _scan_paths(paths, custom_date, custom_addr, st, sel_csv)
+    return _scan_paths(paths, custom_date, custom_addr, style, st, sel_csv)
 
 
-def _scan_paths(paths: list[Path], custom_date, custom_addr, st, sel_csv):
+def _scan_paths(paths: list[Path], custom_date, custom_addr, style, st, sel_csv):
     if not paths:
         return grid_html(None), None, "No images in that folder."
     if st:
@@ -176,19 +183,21 @@ def _scan_paths(paths: list[Path], custom_date, custom_addr, st, sel_csv):
         while name in files_map:  # same filename in nested subfolders
             name, i = f"{p.stem}_{i}{p.suffix}", i + 1
         files_map[name] = str(p)
+    prev_sel = set(filter(None, (sel_csv or "").splitlines()))
     for i, (name, src) in enumerate(files_map.items()):
         img = load_thumb(Path(src))
-        lines = stamp_lines(img, Path(src), custom_date, custom_addr)
-        stamp(img, lines)
+        on = name in prev_sel  # custom date/address only touch SELECTED images
+        lines = stamp_lines(img, Path(src), custom_date if on else None, custom_addr if on else "")
+        stamp(img, lines, style)
         caps[name] = f"{name} — {lines[0]}"
         img.save(f"{tmpdir}/{i}.jpg", quality=88)
-    prev_sel = set(filter(None, (sel_csv or "").splitlines()))
     new_st = {"dir": tmpdir, "files": files_map, "names": list(files_map), "caps": caps,
               "sel": [n for n in files_map if n in prev_sel]}
     return grid_html(new_st), new_st, f"{len(new_st['names'])} image(s) loaded."
 
 
-def apply(st: dict | None, sel_csv: str, out_dir: str, custom_date=None, custom_addr: str = ""):
+def apply(st: dict | None, sel_csv: str, out_dir: str, custom_date=None, custom_addr: str = "",
+          style: str = STYLES[0]):
     selected = [n for n in (st["names"] if st else []) if n in set((sel_csv or "").splitlines())]
     if not selected:
         raise gr.Error("No images selected — click some previews first.")
@@ -197,7 +206,7 @@ def apply(st: dict | None, sel_csv: str, out_dir: str, custom_date=None, custom_
     for name in selected:
         p = Path(st["files"][name])
         img = ImageOps.exif_transpose(Image.open(p))
-        stamped = stamp(img, stamp_lines(img, p, custom_date, custom_addr))
+        stamped = stamp(img, stamp_lines(img, p, custom_date, custom_addr), style)
         if p.suffix.lower() in {".jpg", ".jpeg"} and stamped.mode != "RGB":
             stamped = stamped.convert("RGB")
         stamped.save(out / name, exif=img.info.get("exif") or b"")
@@ -212,9 +221,10 @@ def apply(st: dict | None, sel_csv: str, out_dir: str, custom_date=None, custom_
     )
 
 
-def apply_web(st: dict | None, sel_csv: str, custom_date=None, custom_addr: str = ""):
+def apply_web(st: dict | None, sel_csv: str, custom_date=None, custom_addr: str = "",
+              style: str = STYLES[0]):
     out = Path(tempfile.mkdtemp(prefix="out_", dir=THUMB_ROOT)) / "stamped"
-    _, zip_file = apply(st, sel_csv, str(out), custom_date, custom_addr)
+    _, zip_file = apply(st, sel_csv, str(out), custom_date, custom_addr, style)
     n = len([n for n in (st["names"] if st else []) if n in set((sel_csv or "").splitlines())])
     return f"Done — {n} image(s) stamped. Download the zip below.", zip_file
 
@@ -232,16 +242,21 @@ with gr.Blocks(title="PhotoLog") as demo:
     status = gr.Markdown()
     grid = gr.HTML(grid_html(None))
     with gr.Row():
-        custom_date = gr.DateTime(label="Custom date (optional — time always comes from the photo itself)",
+        custom_date = gr.DateTime(label="Custom date (optional — applies to SELECTED images only; "
+                                        "time always comes from the photo itself)",
                                   include_time=False, type="datetime")
-        custom_addr = gr.Textbox(label="Custom address (optional — one line per row)", lines=3,
+        custom_addr = gr.Textbox(label="Custom address (optional, selected images only — one line per row)",
+                                 lines=3,
                                  placeholder="1521 Meander Rd\nTimmonsville SC 29161\nUnited States")
-        refresh_btn = gr.Button("Refresh previews", size="sm")
+        with gr.Column():
+            style_dd = gr.Dropdown(STYLES, value=STYLES[0], label="Stamp style")
+            refresh_btn = gr.Button("Refresh previews", size="sm")
     if WEB:
         apply_btn = gr.Button("Apply", variant="primary")
     else:
         with gr.Row():
             out_dir = gr.Textbox(label="Output folder", value=str(Path.home() / "PhotoLog-output"), scale=4)
+            out_browse_btn = gr.Button("Browse…", scale=1)
             apply_btn = gr.Button("Apply", variant="primary", scale=1)
     result_md = gr.Markdown()
     download = gr.File(label="Download all (zip)", visible=False)
@@ -249,20 +264,23 @@ with gr.Blocks(title="PhotoLog") as demo:
     st = gr.State(None)
 
     if WEB:
-        rescan = dict(fn=scan_upload, inputs=[upload, custom_date, custom_addr, st, plsel],
+        rescan = dict(fn=scan_upload, inputs=[upload, custom_date, custom_addr, style_dd, st, plsel],
                       outputs=[grid, st, status], js=HARVEST_SCAN)
         upload.change(**rescan)
         refresh_btn.click(**rescan)
-        apply_btn.click(apply_web, [st, plsel, custom_date, custom_addr], [result_md, download],
+        style_dd.change(**rescan)
+        apply_btn.click(apply_web, [st, plsel, custom_date, custom_addr, style_dd], [result_md, download],
                         js=HARVEST_APPLY_WEB).then(**rescan)
     else:
-        rescan = dict(fn=scan, inputs=[folder_tb, custom_date, custom_addr, st, plsel],
+        rescan = dict(fn=scan, inputs=[folder_tb, custom_date, custom_addr, style_dd, st, plsel],
                       outputs=[grid, st, status], js=HARVEST_SCAN)
         browse_btn.click(pick_folder, folder_tb, folder_tb).then(**rescan)
         folder_tb.submit(**rescan)
         load_btn.click(**rescan)
         refresh_btn.click(**rescan)
-        apply_btn.click(apply, [st, plsel, out_dir, custom_date, custom_addr], [result_md, download],
+        style_dd.change(**rescan)
+        out_browse_btn.click(pick_folder, out_dir, out_dir)
+        apply_btn.click(apply, [st, plsel, out_dir, custom_date, custom_addr, style_dd], [result_md, download],
                         js=HARVEST_APPLY).then(**rescan)
     demo.load(None, None, None, js=JS)
 
@@ -272,6 +290,8 @@ def check():
     before = img.copy()
     stamp(img, ["Jul 28, 2026 at 8:23:59 AM", "1521 Meander Rd", "United States"])
     assert img.tobytes() != before.tobytes(), "stamp drew nothing"
+    variants = {s: stamp(before.copy(), ["Jul 28, 2026"], s).tobytes() for s in STYLES}
+    assert len(set(variants.values())) == len(STYLES), "styles must render differently"
     mt = datetime.fromtimestamp(Path(__file__).stat().st_mtime)
     lines = stamp_lines(before, Path(__file__), datetime(2020, 1, 2), "A\nB")
     assert lines[1:] == ["A", "B"], lines
