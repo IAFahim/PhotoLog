@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
@@ -72,23 +73,32 @@ internal static class Core
     }
 
     /// The override fields are scoped to checked images; an unchecked photo always
-    /// stamps its own EXIF date and no address. Every render/export path goes through here.
-    public static (DateOnly? Date, string Addr) Fields(bool selected, DateOnly? date, string? addr) =>
-        selected ? (date, addr ?? "") : (null, "");
+    /// stamps its own EXIF date, no address and no caption. Every render/export path goes through here.
+    public static (DateOnly? Date, string Addr, string Caption) Fields(
+        bool selected, DateOnly? date, string? addr, string? caption = null) =>
+        selected ? (date, addr ?? "", caption ?? "") : (null, "", "");
 
-    public static string[] StampLines(Image img, string path, DateOnly? overrideDate, string? addr)
-    {
-        var date = DateLine(img, path, overrideDate);
-        var a = (addr ?? "").Trim();
-        return a.Length == 0 ? [date] : [date, .. a.ReplaceLineEndings("\n").Split('\n')];
-    }
+    static string[] Lines(string? block) =>
+        (block ?? "").Trim() is { Length: > 0 } s ? s.ReplaceLineEndings("\n").Split('\n') : [];
 
-    public static void Stamp(Image img, string[] lines)
+    public static string[] StampLines(Image img, string path, DateOnly? overrideDate, string? addr, string? caption = null) =>
+        [DateLine(img, path, overrideDate), .. Lines(addr), .. Lines(caption)];
+
+    /// Global rendering setting — unlike date/address it applies to every image, selected or not.
+    public enum StampStyle { OutlinedShadow, SoftShadow, PlainWhite }
+
+    public static readonly string[] StyleNames =
+        ["Outlined + drop shadow (classic)", "Soft shadow", "Plain white"];
+
+    static readonly Color ShadowColor = Color.FromRgb(50, 50, 50);  // #323232
+    static readonly Color StrokeColor = Color.FromRgb(60, 60, 60);  // #3C3C3C
+
+    public static void Stamp(Image img, string[] lines, StampStyle style = StampStyle.OutlinedShadow)
     {
         var size = Math.Max(14, img.Width / 30);
         var font = Family.CreateFont(size);
         var text = string.Join('\n', lines);
-        var off = Math.Max(1, size / 12);
+        var off = Math.Max(1, size / 10);
         float x = img.Width - size / 2, y = size / 2;
         RichTextOptions At(float dx, float dy) => new(font)
         {
@@ -100,31 +110,43 @@ internal static class Core
             // 1.33 is the closest single constant; exact only if you measure font metrics per size.
             LineSpacing = 4f / 3f,
         };
-        img.Mutate(c => c.DrawText(At(off, off), text, Color.Black)   // soft shadow
-                         .DrawText(At(0, 0), text, Color.White));
+        img.Mutate(c =>
+        {
+            if (style != StampStyle.PlainWhite)
+                c.DrawText(At(off, off), text, ShadowColor); // drop shadow
+            if (style == StampStyle.OutlinedShadow)
+            {
+                // Pillow's stroke_width=N grows the glyph N px outward; an ImageSharp pen strokes
+                // centred on the outline, so width 2N gives the same outward growth. Drawn as its
+                // own dark pass underneath so the white fill stays full weight on top.
+                var stroke = Math.Max(1, size / 16);
+                c.DrawText(At(0, 0), text, Brushes.Solid(StrokeColor), Pens.Solid(StrokeColor, stroke * 2));
+            }
+            c.DrawText(At(0, 0), text, Color.White);
+        });
     }
 
     /// Stamped preview, decoded small (JPEG scaled DCT) so a folder scan stays fast.
-    public static (byte[] Jpeg, string Date) Thumb(string path, DateOnly? overrideDate, string? addr, int maxSide = 768)
+    public static (byte[] Jpeg, string Date) Thumb(string path, DateOnly? overrideDate, string? addr, string? caption = null, StampStyle style = StampStyle.OutlinedShadow, int maxSide = 768)
     {
         using var img = Image.Load(new DecoderOptions { TargetSize = new Size(maxSide, maxSide) }, path);
         img.Mutate(c => c.AutoOrient());
         if (img.Width > maxSide || img.Height > maxSide)
             img.Mutate(c => c.Resize(new ResizeOptions { Size = new Size(maxSide, maxSide), Mode = ResizeMode.Max }));
-        var lines = StampLines(img, path, overrideDate, addr);
-        Stamp(img, lines);
+        var lines = StampLines(img, path, overrideDate, addr, caption);
+        Stamp(img, lines, style);
         using var ms = new MemoryStream();
         img.SaveAsJpeg(ms, new JpegEncoder { Quality = 88 });
         return (ms.ToArray(), lines[0]);
     }
 
     /// Full-resolution stamped copy into outDir. Originals are never touched.
-    public static string Export(string src, string name, string outDir, DateOnly? overrideDate, string? addr)
+    public static string Export(string src, string name, string outDir, DateOnly? overrideDate, string? addr, string? caption = null, StampStyle style = StampStyle.OutlinedShadow)
     {
         Directory.CreateDirectory(outDir);
         using var img = Image.Load(src);
         img.Mutate(c => c.AutoOrient());
-        Stamp(img, StampLines(img, src, overrideDate, addr));
+        Stamp(img, StampLines(img, src, overrideDate, addr, caption), style);
         var dest = Path.Combine(outDir, name);
         img.Save(dest); // encoder from extension; ImageSharp re-writes the EXIF profile it read
         return dest;
@@ -161,6 +183,21 @@ internal static class Core
             max = Math.Max(max, Math.Max(Math.Abs(p.R - q.R), Math.Max(Math.Abs(p.G - q.G), Math.Abs(p.B - q.B))));
         }
         return max;
+    }
+
+    /// The captioner is opt-in: with no model on disk this must report, not throw.
+    static void CaptionCheck(string imagePath)
+    {
+        if (!Caption.Ready)
+        {
+            Console.WriteLine($"  skip  caption model not downloaded ({Caption.TotalBytes / 1e9:0.0} GB) — pipeline unaffected");
+            return;
+        }
+        var t0 = DateTime.UtcNow;
+        var (text, tps) = Caption.Describe(imagePath, CancellationToken.None).GetAwaiter().GetResult();
+        Console.WriteLine($"  caption: \"{text}\"  ({tps:0.0} tok/s, {(DateTime.UtcNow - t0).TotalSeconds:0.0}s incl. model load)");
+        Check(text.Length > 0 && !text.Contains("<start_of_turn>"), "caption model produced a clean one-line caption");
+        Caption.Unload();
     }
 
     public static int SelfCheck()
@@ -228,23 +265,45 @@ internal static class Core
             Check(Thumb(found[0].Path, null, "").Date == "Jul 17, 2026 at 7:35:49 PM", "thumbnail with empty picker uses the photo's own date");
 
             // override fields are scoped to checked photos: a.jpg checked, b.png not
-            var (selDate, selAddr) = Fields(true, jul28, "1521 Meander Rd");
-            var (unsDate, unsAddr) = Fields(false, jul28, "1521 Meander Rd");
-            var selExport = Export(found[0].Path, "scoped-selected.jpg", outDir, selDate, selAddr);
-            var unsThumb = Thumb(found[2].Path, unsDate, unsAddr);
-            Check(Thumb(found[0].Path, selDate, selAddr).Date == "Jul 28, 2026 at 7:35:49 PM",
+            var (selDate, selAddr, selCap) = Fields(true, jul28, "1521 Meander Rd", "a green field at dusk");
+            var (unsDate, unsAddr, unsCap) = Fields(false, jul28, "1521 Meander Rd", "a green field at dusk");
+            var selExport = Export(found[0].Path, "scoped-selected.jpg", outDir, selDate, selAddr, selCap);
+            var unsThumb = Thumb(found[2].Path, unsDate, unsAddr, unsCap);
+            Check(Thumb(found[0].Path, selDate, selAddr, selCap).Date == "Jul 28, 2026 at 7:35:49 PM",
                   "checked photo: override date + its own time");
             Check(unsThumb.Date == "Jul 17, 2026 at 8:23:59 AM",
                   "unchecked photo re-rendered alongside it keeps its original EXIF date");
             using (var sel = Image.Load(found[0].Path))
             using (var uns = Image.Load(found[2].Path))
             {
-                Check(StampLines(sel, found[0].Path, selDate, selAddr).Length == 2, "checked photo gets the address line");
-                Check(StampLines(uns, found[2].Path, unsDate, unsAddr).Length == 1, "unchecked photo gets no address line");
+                var selLines = StampLines(sel, found[0].Path, selDate, selAddr, selCap);
+                Check(selLines is [_, "1521 Meander Rd", "a green field at dusk"], "checked photo: date, then address, then caption last");
+                Check(StampLines(uns, found[2].Path, unsDate, unsAddr, unsCap).Length == 1, "unchecked photo gets no address and no caption");
+                Check(StampLines(sel, found[0].Path, selDate, selAddr, "").Length == 2, "cleared caption -> no caption line");
+                Check(StampLines(sel, found[0].Path, selDate, "", selCap) is [_, "a green field at dusk"], "caption without address still stamps");
             }
             Check(File.Exists(selExport) && MaxDiff(found[0].Path, selExport, 0.5f, 0f, 1f, 0.35f) > 60,
                   "scoped export wrote the checked photo's stamp");
-            Check(Fields(false, null, null) == Fields(false, jul28, "x"), "nothing selected -> override changes nothing");
+            Check(Fields(false, null, null, null) == Fields(false, jul28, "x", "y"), "nothing selected -> override changes nothing");
+
+            Check(Caption.Tidy("  A quiet street at sunset.\nExtra rambling here <end_of_turn>") == "A quiet street at sunset",
+                  "caption tidy: one line, no template debris, no trailing period");
+
+            // stamp styles: three visibly different renderings of the same text, default = outlined
+            var styled = new Dictionary<StampStyle, string>();
+            foreach (var st in Enum.GetValues<StampStyle>())
+                styled[st] = Export(found[0].Path, $"style-{st}.jpg", outDir, jul28, "1521 Meander Rd", "", st);
+            foreach (var (a, b) in new[] { (StampStyle.OutlinedShadow, StampStyle.SoftShadow),
+                                           (StampStyle.OutlinedShadow, StampStyle.PlainWhite),
+                                           (StampStyle.SoftShadow, StampStyle.PlainWhite) })
+                Check(MaxDiff(styled[a], styled[b], 0.5f, 0f, 1f, 0.35f) > 30, $"style {a} differs from {b} in the stamp area");
+            var byDefault = Export(found[0].Path, "style-default.jpg", outDir, jul28, "1521 Meander Rd", "");
+            Check(MaxDiff(byDefault, styled[StampStyle.OutlinedShadow], 0f, 0f, 1f, 1f) == 0,
+                  "default style is outlined + drop shadow");
+            Check(StyleNames.Length == Enum.GetValues<StampStyle>().Length && StyleNames[0].StartsWith("Outlined"),
+                  "three named presets, classic first");
+
+            CaptionCheck(found[0].Path);
 
             Console.WriteLine("selfcheck OK");
             return 0;

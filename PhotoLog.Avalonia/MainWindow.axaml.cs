@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     PhotoItem? _preview;
     CancellationTokenSource? _cts;
     (DateOnly? Date, string Addr) _rendered;
+    bool _sizeWarned;
 
     public MainWindow() : this(null) { }
 
@@ -27,7 +28,15 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         PhotoGrid.ItemsSource = _items;
+        StyleBox.ItemsSource = Core.StyleNames;
+        StyleBox.SelectedIndex = 0; // outlined + drop shadow is the default look
         OutBox.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "PhotoLog-output");
+        // Mica/acrylic needs a transparent window; where the compositor can't do it (most X11),
+        // drop back to the opaque theme background so the window isn't see-through.
+        Opened += (_, _) =>
+        {
+            if (ActualTransparencyLevel == WindowTransparencyLevel.None) ClearValue(BackgroundProperty);
+        };
         if (string.IsNullOrWhiteSpace(initialFolder)) return;
         FolderBox.Text = initialFolder;
         Opened += async (_, _) => await Rescan(); // `photolog ~/pics` opens straight into the folder
@@ -36,6 +45,18 @@ public partial class MainWindow : Window
     // empty picker (the default) -> every photo keeps its own EXIF date; a picked date
     // replaces only y/m/d, never the photo's clock (Core.DateLine does the combining)
     DateOnly? OverrideDate => DatePart.SelectedDate is { } d ? DateOnly.FromDateTime(d) : null;
+
+    // global: the stamp style is never gated by selection
+    Core.StampStyle Style => (Core.StampStyle)Math.Max(0, StyleBox.SelectedIndex);
+
+    async void Style_Changed(object? sender, SelectionChangedEventArgs e) => await Refresh();
+
+    async void BrowseOut_Click(object? sender, RoutedEventArgs e)
+    {
+        var picked = await StorageProvider.OpenFolderPickerAsync(
+            new FolderPickerOpenOptions { Title = "Pick output folder", AllowMultiple = false });
+        if (picked.Count > 0) OutBox.Text = picked[0].TryGetLocalPath() ?? picked[0].Path.LocalPath;
+    }
 
     async void Browse_Click(object? sender, RoutedEventArgs e)
     {
@@ -71,7 +92,7 @@ public partial class MainWindow : Window
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
         Status.Text = $"{_items.Count} image(s) loaded — rendering previews…";
-        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", _cts.Token);
+        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", Style, _cts.Token);
         if (_cts.IsCancellationRequested) return;
         _rendered = (OverrideDate, AddrBox.Text ?? "");
         Status.Text = $"{_items.Count} image(s) loaded.";
@@ -99,17 +120,17 @@ public partial class MainWindow : Window
 
         _items.Clear(); // a freshly loaded folder always starts with nothing selected
         foreach (var (name, path) in found)
-            _items.Add(new PhotoItem { Name = name, Path = path, Caption = name });
+            _items.Add(new PhotoItem { Name = name, Path = path, Tip = name });
         UpdateCount();
         Status.Text = $"{_items.Count} image(s) loaded — rendering previews…";
 
-        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", ct);
+        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", Style, ct);
         if (ct.IsCancellationRequested) return;
         _rendered = (OverrideDate, AddrBox.Text ?? "");
         Status.Text = $"{_items.Count} image(s) loaded.";
     }
 
-    static async Task RenderThumbs(IReadOnlyList<PhotoItem> items, DateOnly? date, string addr, CancellationToken ct)
+    static async Task RenderThumbs(IReadOnlyList<PhotoItem> items, DateOnly? date, string addr, Core.StampStyle style, CancellationToken ct)
     {
         try
         {
@@ -120,14 +141,14 @@ public partial class MainWindow : Window
                 {
                     try
                     {
-                        var (d, a) = Core.Fields(item.Selected, date, addr);
-                        var (jpeg, line) = Core.Thumb(item.Path, d, a);
+                        var (d, a, cap) = Core.Fields(item.Selected, date, addr, item.Caption);
+                        var (jpeg, line) = Core.Thumb(item.Path, d, a, cap, style);
                         var bmp = new Bitmap(new MemoryStream(jpeg));
-                        Dispatcher.UIThread.Post(() => { item.Thumb = bmp; item.Caption = $"{item.Name} — {line}"; });
+                        Dispatcher.UIThread.Post(() => { item.Thumb = bmp; item.Tip = $"{item.Name} — {line}"; });
                     }
                     catch (Exception ex)
                     {
-                        Dispatcher.UIThread.Post(() => item.Caption = $"{item.Name} — cannot read: {ex.Message}");
+                        Dispatcher.UIThread.Post(() => item.Tip = $"{item.Name} — cannot read: {ex.Message}");
                     }
                 }), ct);
         }
@@ -143,9 +164,8 @@ public partial class MainWindow : Window
         item.Selected = !item.Selected;
         UpdateCount();
         ShowPreview(item);
-        if (!HasOverride) return;
-        await RenderThumbs([item], OverrideDate, AddrBox.Text ?? "", CancellationToken.None);
-        if (_preview == item) ShowPreview(item);
+        // selection gates the override AND this photo's caption, so either one means a restamp
+        if (HasOverride || item.Caption.Length > 0) await RestampOne(item);
     }
 
     void ShowPreview(PhotoItem item)
@@ -153,7 +173,9 @@ public partial class MainWindow : Window
         _preview = item;
         PreviewImage.Source = item.Thumb;
         PreviewName.Text = item.Name + (item.Selected ? "  [selected ✓]" : "  [not selected]");
-        SaveOneBtn.IsEnabled = true;
+        CaptionBox.Text = item.Caption;
+        SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = CaptionBtn.IsEnabled = true;
+        CaptionAllBtn.IsEnabled = true;
     }
 
     void ClearPreview()
@@ -161,7 +183,92 @@ public partial class MainWindow : Window
         _preview = null;
         PreviewImage.Source = null;
         PreviewName.Text = "Click an image to preview it and toggle selection";
-        SaveOneBtn.IsEnabled = false;
+        CaptionBox.Text = "";
+        SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = false;
+    }
+
+    // ---- opt-in local captioning (Gemma 4 E2B via llama.cpp, downloaded on first use) ----
+
+    async void Caption_LostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (_preview is null || _preview.Caption == (CaptionBox.Text ?? "")) return;
+        _preview.Caption = CaptionBox.Text ?? "";
+        await RestampOne(_preview); // an edited or cleared caption changes what the stamp says
+    }
+
+    async Task RestampOne(PhotoItem item)
+    {
+        await RenderThumbs([item], OverrideDate, AddrBox.Text ?? "", Style, CancellationToken.None);
+        if (_preview == item) ShowPreview(item);
+    }
+
+    async void Caption_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_preview is not null) await RunCaptions([_preview]);
+    }
+
+    async void CaptionAll_Click(object? sender, RoutedEventArgs e)
+    {
+        var selected = _items.Where(i => i.Selected).ToArray();
+        if (selected.Length == 0) { AiStatus.Text = "Nothing selected to caption."; return; }
+        await RunCaptions(selected);
+    }
+
+    async Task RunCaptions(IReadOnlyList<PhotoItem> items)
+    {
+        if (!await EnsureModel()) return;
+        CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = false;
+        try
+        {
+            for (var i = 0; i < items.Count; i++)
+            {
+                AiStatus.Text = $"Captioning {i + 1}/{items.Count}: {items[i].Name}…";
+                var (text, tps) = await Caption.Describe(items[i].Path, CancellationToken.None);
+                items[i].Caption = text;
+                if (_preview == items[i]) CaptionBox.Text = text;
+                await RestampOne(items[i]);
+                AiStatus.Text = $"Captioned {i + 1}/{items.Count} ({tps:0.0} tok/s)";
+            }
+        }
+        catch (Exception ex)
+        {
+            AiStatus.Text = "Captioning failed: " + ex.Message;
+        }
+        finally
+        {
+            CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = _preview is not null;
+        }
+    }
+
+    /// Dormant until the user says yes: the model is only fetched after an explicit confirmation.
+    async Task<bool> EnsureModel()
+    {
+        if (Caption.Ready) return true;
+        var gb = Caption.TotalBytes / 1e9;
+        if (!_sizeWarned)
+        {
+            AiStatus.Text = $"Captioning needs a one-time {gb:0.0} GB download (Gemma 4 E2B, runs offline on CPU) "
+                          + "into " + Caption.Dir + ". Click Caption again to start.";
+            _sizeWarned = true;
+            return false;
+        }
+        CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = false;
+        try
+        {
+            var progress = new Progress<double>(f => AiStatus.Text = $"Downloading model… {f * gb:0.00} / {gb:0.0} GB ({f:P0})");
+            await Caption.Download(progress, CancellationToken.None);
+            AiStatus.Text = "Model ready.";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AiStatus.Text = "Download failed: " + ex.Message;
+            return false;
+        }
+        finally
+        {
+            CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = _preview is not null;
+        }
     }
 
     async void SelectAll_Click(object? sender, RoutedEventArgs e) => await SetAll(true);
@@ -199,14 +306,15 @@ public partial class MainWindow : Window
         if (outDir.Length == 0) { Result.Text = "Set an output folder first."; return; }
         var date = OverrideDate;
         var addr = AddrBox.Text ?? "";
+        var style = Style;
         ApplyBtn.IsEnabled = SaveOneBtn.IsEnabled = false;
         Result.Text = $"Writing {items.Count} image(s) to {outDir}…";
         try
         {
             await Task.Run(() => Parallel.ForEach(items, i =>
             {
-                var (d, a) = Core.Fields(i.Selected, date, addr);
-                Core.Export(i.Path, i.Name, outDir, d, a);
+                var (d, a, cap) = Core.Fields(i.Selected, date, addr, i.Caption);
+                Core.Export(i.Path, i.Name, outDir, d, a, cap, style);
             }));
             Result.Text = $"{verb} — {items.Count} image(s) written to {outDir}";
         }
