@@ -39,9 +39,15 @@
         <TextBox Grid.Column="3" x:Name="AddrBox" AcceptsReturn="True" Height="72"
                  LostFocus="Addr_LostFocus"
                  PlaceholderText="1521 Meander Rd&#10;Timmonsville SC 29161&#10;United States"/>
-        <ComboBox Grid.Column="4" x:Name="StyleCombo" Width="240" Margin="18,0,0,0" VerticalAlignment="Center"
-                  ToolTip.Tip="Stamp style — applies to every image, selected or not"
-                  SelectionChanged="StyleChanged"/>
+        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" Margin="18,0,0,0" VerticalAlignment="Center"
+                    ToolTip.Tip="Shadow offset of the dark text behind the stamp. +X = right, -Y = up. 0/0 = none. Applies to every image, selected or not.">
+          <TextBlock Classes="label" Text="Shadow X"/>
+          <NumericUpDown x:Name="ShadowXBox" Value="2" Increment="1" FormatString="0" Width="110"
+                         ValueChanged="StyleChanged"/>
+          <TextBlock Classes="label" Text="Y" Margin="6,0,0,0"/>
+          <NumericUpDown x:Name="ShadowYBox" Value="-2" Increment="1" FormatString="0" Width="110"
+                         ValueChanged="StyleChanged"/>
+        </StackPanel>
         <Button Grid.Column="5" Content="Refresh previews" Margin="8,0,0,0" VerticalAlignment="Center"
                 Click="Refresh_Click"/>
       </Grid>

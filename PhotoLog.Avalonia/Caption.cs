@@ -99,9 +99,10 @@ internal static class Caption
 
             using var context = _weights.CreateContext(p); // fresh context per image: no state bleed
             var exec = new InteractiveExecutor(context, _clip!);
-            using var embed = SafeMtmdEmbed.FromMediaFile(_clip!.NativeHandle, imagePath)
-                              ?? throw new InvalidOperationException("the vision projector could not read " + imagePath);
-            exec.Embeds.Add(embed);
+            // LoadMedia (not SafeMtmdEmbed.FromMediaFile) is what registers the bitmap with the mtmd
+            // context; the executor disposes the embed for us once the prompt is tokenized.
+            exec.Embeds.Add(_clip!.LoadMedia(imagePath)
+                            ?? throw new InvalidOperationException("the vision projector could not read " + imagePath));
 
             var text = new StringBuilder();
             var started = DateTime.UtcNow;
@@ -112,7 +113,9 @@ internal static class Caption
                 AntiPrompts = ["<end_of_turn>"],
                 SamplingPipeline = new DefaultSamplingPipeline { Temperature = 0.2f },
             };
-            var turn = $"<start_of_turn>user\n{NativeApi.MtmdDefaultMarker()}\n{Prompt}<end_of_turn>\n<start_of_turn>model\n";
+            // "<image>" is the executor's placeholder — it swaps in the real media marker in place,
+            // so the picture lands inside the user turn instead of being appended after it.
+            var turn = $"<start_of_turn>user\n<image>\n{Prompt}<end_of_turn>\n<start_of_turn>model\n";
             await foreach (var piece in exec.InferAsync(turn, infer, ct))
             {
                 text.Append(piece);
