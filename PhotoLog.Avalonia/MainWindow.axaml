@@ -39,10 +39,10 @@
         <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" Margin="16,0,0,0" VerticalAlignment="Center"
                     ToolTip.Tip="Shadow offset of the dark text behind the stamp. +X = right, -Y = up. 0/0 = none.">
           <TextBlock Text="Shadow X" VerticalAlignment="Center"/>
-          <NumericUpDown x:Name="ShadowXBox" Value="2" Increment="1" FormatString="0" Width="110"
+          <NumericUpDown x:Name="ShadowXBox" Value="1" Increment="1" FormatString="0" Width="110"
                          ValueChanged="StyleChanged"/>
           <TextBlock Text="Y" VerticalAlignment="Center" Margin="6,0,0,0"/>
-          <NumericUpDown x:Name="ShadowYBox" Value="-2" Increment="1" FormatString="0" Width="110"
+          <NumericUpDown x:Name="ShadowYBox" Value="-1" Increment="1" FormatString="0" Width="110"
                          ValueChanged="StyleChanged"/>
         </StackPanel>
         <Button Grid.Column="5" Content="Refresh previews" Margin="6,0,0,0" VerticalAlignment="Center"

@@ -83,8 +83,8 @@ internal static class Core
         return a.Length == 0 ? [date] : [date, .. a.ReplaceLineEndings("\n").Split('\n')];
     }
 
-    // default look: dark twin of the text peeking ~2px toward the top-right from behind the white text
-    public const int DefaultShadowX = 2, DefaultShadowY = -2;
+    // default look: dark twin of the text peeking ~1px toward the top-right from behind the white text
+    public const int DefaultShadowX = 1, DefaultShadowY = -1;
 
     public static void Stamp(Image img, string[] lines, int shadowX = DefaultShadowX, int shadowY = DefaultShadowY)
     {
@@ -257,10 +257,10 @@ internal static class Core
                   "scoped export wrote the checked photo's stamp");
             Check(Fields(false, null, null) == Fields(false, jul28, "x"), "nothing selected -> override changes nothing");
 
-            // shadow offset is user-controlled; default (+2,-2) = dark twin toward the top-right
+            // shadow offset is user-controlled; default (+1,-1) = dark twin toward the top-right
             var defJpeg = Thumb(found[0].Path, null, "").Jpeg;
-            Check(defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 2, shadowY: -2).Jpeg),
-                  "default shadow offset is (+2,-2)");
+            Check(defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 1, shadowY: -1).Jpeg),
+                  "default shadow offset is (+1,-1)");
             Check(!defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 0, shadowY: 0).Jpeg),
                   "offset (0,0) removes the dark twin");
             Check(!defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 6, shadowY: 6).Jpeg),
