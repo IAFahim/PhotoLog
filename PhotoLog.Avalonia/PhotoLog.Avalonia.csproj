@@ -4,6 +4,11 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- LLamaSharp finds llama.cpp by probing runtimes/[rid]/native next to the app. Self-extracting
+         the natives out of a single-file bundle flattens that layout and the load throws, so keep
+         them beside the executable. "dotnet publish -r [rid] -p:PublishSingleFile=true" then yields
+         one managed exe plus a runtimes/ folder, which is what the app expects. -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>
