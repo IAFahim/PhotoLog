@@ -1,0 +1,110 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PhotoLog.Avalonia"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+        x:Class="PhotoLog.Avalonia.MainWindow"
+        Width="1200" Height="820"
+        Title="PhotoLog">
+
+  <DockPanel Margin="12">
+
+    <!-- header -->
+    <StackPanel DockPanel.Dock="Top" Spacing="6">
+      <TextBlock Text="PhotoLog" FontSize="22" FontWeight="Bold"/>
+      <TextBlock Text="Stamp the date (and your address text, if given) on each photo's top-right corner."
+                 Opacity="0.75"/>
+      <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,6,0,0">
+        <TextBox x:Name="FolderBox" PlaceholderText="/path/to/photos — or click Browse" KeyDown="Folder_KeyDown"/>
+        <Button Grid.Column="1" Content="Browse…" Margin="6,0,0,0" Click="Browse_Click"/>
+        <Button Grid.Column="2" Content="Load" Margin="6,0,0,0" Classes="accent" Click="Load_Click"/>
+      </Grid>
+      <TextBlock x:Name="Status" Opacity="0.8"
+                 Text="Pick a folder with Browse, or type its path and press Enter."/>
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" Margin="0,4,0,0">
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <TextBlock Text="Override date:" VerticalAlignment="Center"/>
+          <CalendarDatePicker x:Name="DatePart" Width="150"
+                              ToolTip.Tip="Leave empty to stamp each photo's own date. Picking a date replaces only the day — the time stays each photo's own."
+                              SelectedDateChanged="DateChanged"/>
+        </StackPanel>
+        <Button Grid.Column="1" Content="Clear" Margin="6,0,0,0" VerticalAlignment="Center"
+                ToolTip.Tip="Back to each photo's own date"
+                Click="ClearDate_Click"/>
+        <TextBlock Grid.Column="2" Text="Address (optional):" Margin="16,0,6,0" VerticalAlignment="Center"/>
+        <TextBox Grid.Column="3" x:Name="AddrBox" AcceptsReturn="True" Height="72"
+                 LostFocus="Addr_LostFocus"
+                 PlaceholderText="1521 Meander Rd&#10;Timmonsville SC 29161&#10;United States"/>
+        <Button Grid.Column="4" Content="Refresh previews" Margin="6,0,0,0" VerticalAlignment="Center"
+                Click="Refresh_Click"/>
+      </Grid>
+    </StackPanel>
+
+    <!-- footer -->
+    <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="0,10,0,0">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Text="Output folder:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <TextBox Grid.Column="1" x:Name="OutBox"/>
+        <Button Grid.Column="2" x:Name="ApplyBtn" Content="Apply" Margin="6,0,0,0" Classes="accent"
+                Click="Apply_Click"/>
+      </Grid>
+      <TextBlock x:Name="Result" Opacity="0.85" TextWrapping="Wrap"/>
+    </StackPanel>
+
+    <!-- grid + preview -->
+    <Grid ColumnDefinitions="3*,2*" Margin="0,10,0,0">
+      <DockPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+          <TextBlock x:Name="CountText" Text="0/0 selected" VerticalAlignment="Center"/>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+            <Button Content="Select all" Click="SelectAll_Click"/>
+            <Button Content="Select none" Click="SelectNone_Click"/>
+          </StackPanel>
+        </Grid>
+        <ScrollViewer>
+          <ItemsControl x:Name="PhotoGrid">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="local:PhotoItem">
+                <Border Width="150" Height="140" Margin="5" CornerRadius="8" ClipToBounds="True"
+                        Background="#20808080" Cursor="Hand" ToolTip.Tip="{Binding Caption}"
+                        PointerPressed="Cell_Click">
+                  <Panel>
+                    <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
+                    <!-- checkbox indicator: empty box / green check -->
+                    <Border Width="22" Height="22" Margin="6" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            CornerRadius="5" BorderThickness="2" BorderBrush="#333333" Background="White"
+                            IsVisible="{Binding !Selected}"/>
+                    <Border Width="22" Height="22" Margin="6" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            CornerRadius="5" BorderThickness="2" BorderBrush="#166534" Background="#22C55E"
+                            IsVisible="{Binding Selected}">
+                      <TextBlock Text="✓" Foreground="White" FontWeight="Bold" FontSize="14"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <Border VerticalAlignment="Bottom" Background="#8C000000" Padding="4,2">
+                      <TextBlock Text="{Binding Name}" Foreground="White" FontSize="11"
+                                 TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                  </Panel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </DockPanel>
+
+      <!-- star row so a tall portrait preview shrinks to fit instead of overflowing -->
+      <Grid Grid.Column="1" Margin="12,0,0,0" RowDefinitions="*,Auto,Auto">
+        <Image x:Name="PreviewImage" Stretch="Uniform" Margin="0,0,0,8"/>
+        <TextBlock Grid.Row="1" x:Name="PreviewName" TextAlignment="Center" TextWrapping="Wrap" Opacity="0.85"
+                   Text="Click an image to preview it and toggle selection"/>
+        <Button Grid.Row="2" x:Name="SaveOneBtn" Content="Save this image" HorizontalAlignment="Center"
+                Margin="0,8,0,0" IsEnabled="False" Click="SaveOne_Click"/>
+      </Grid>
+    </Grid>
+
+  </DockPanel>
+</Window>
