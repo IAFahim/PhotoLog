@@ -111,10 +111,16 @@ internal static class Core
             if (style != Styles[2])
                 c.DrawText(At(off, off), text, Color.FromRgb(50, 50, 50)); // drop shadow
             if (style == Styles[0])
-                c.DrawText(At(0, 0), text, Brushes.Solid(Color.White),
-                           Pens.Solid(Color.FromRgb(60, 60, 60), Math.Max(1, size / 16)));
-            else
-                c.DrawText(At(0, 0), text, Color.White);
+            {
+                // Pillow's stroke_width=N grows the glyph N px OUTWARD and paints the fill over it.
+                // An ImageSharp pen strokes centred on the outline, so passing it alongside the white
+                // brush in one call eats N/2 inward and the letters read as hollow. Draw a dilated
+                // dark pass first (width 2N == N outward), then the white fill on top.
+                var stroke = Math.Max(1, size / 16);
+                var dark = Color.FromRgb(60, 60, 60);
+                c.DrawText(At(0, 0), text, Brushes.Solid(dark), Pens.Solid(dark, stroke * 2));
+            }
+            c.DrawText(At(0, 0), text, Color.White);
         });
     }
 
@@ -179,14 +185,33 @@ internal static class Core
         return max;
     }
 
+    /// A recognisable synthetic scene — a flat swatch would prove the model ran, not that it saw.
+    static void MakeScene(string path)
+    {
+        using var img = new Image<Rgb24>(768, 512, new Rgb24(120, 180, 235));   // sky
+        img.Mutate(c => c
+            .Fill(Color.FromRgb(86, 150, 70), new SixLabors.ImageSharp.Drawing.RectangularPolygon(0, 330, 768, 182))     // grass
+            .Fill(Color.FromRgb(252, 222, 80), new SixLabors.ImageSharp.Drawing.EllipsePolygon(665, 85, 45))             // sun
+            .Fill(Color.FromRgb(214, 196, 170), new SixLabors.ImageSharp.Drawing.RectangularPolygon(250, 220, 220, 140)) // wall
+            .FillPolygon(Color.FromRgb(150, 60, 50), new PointF(230, 225), new PointF(490, 225), new PointF(360, 140))
+            .Fill(Color.FromRgb(90, 60, 40), new SixLabors.ImageSharp.Drawing.RectangularPolygon(330, 280, 60, 80))      // door
+            .Fill(Color.FromRgb(150, 200, 235), new SixLabors.ImageSharp.Drawing.RectangularPolygon(275, 250, 35, 35))   // windows
+            .Fill(Color.FromRgb(150, 200, 235), new SixLabors.ImageSharp.Drawing.RectangularPolygon(410, 250, 35, 35))
+            .Fill(Color.FromRgb(95, 65, 45), new SixLabors.ImageSharp.Drawing.RectangularPolygon(540, 300, 18, 60))      // trunk
+            .Fill(Color.FromRgb(60, 120, 55), new SixLabors.ImageSharp.Drawing.EllipsePolygon(550, 275, 50)));           // canopy
+        img.SaveAsJpeg(path);
+    }
+
     /// The captioner is opt-in: with no model on disk this must report, not throw.
-    static void CaptionCheck(string imagePath)
+    static void CaptionCheck(string dir)
     {
         if (!Caption.Ready)
         {
             Console.WriteLine($"  skip  caption model not downloaded ({Caption.TotalBytes / 1e9:0.0} GB) — pipeline unaffected");
             return;
         }
+        var imagePath = Path.Combine(dir, "scene.jpg");
+        MakeScene(imagePath);
         var t0 = DateTime.UtcNow;
         var (text, tps) = Caption.Describe(imagePath, CancellationToken.None).GetAwaiter().GetResult();
         Console.WriteLine($"  caption: \"{text}\"  ({tps:0.0} tok/s, {(DateTime.UtcNow - t0).TotalSeconds:0.0}s incl. model load)");
@@ -283,7 +308,7 @@ internal static class Core
             Check(Caption.Tidy("  A quiet street at sunset.\nExtra rambling here <end_of_turn>") == "A quiet street at sunset",
                   "caption tidy: one line, no template debris, no trailing period");
 
-            CaptionCheck(found[0].Path);
+            CaptionCheck(tmp);
 
             // stamp styles: the three presets render pairwise differently; default == Styles[0]
             var sj = Styles.Select(s => Thumb(found[0].Path, null, "", style: s).Jpeg).ToArray();
