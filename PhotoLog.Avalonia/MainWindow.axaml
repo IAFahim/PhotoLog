@@ -127,6 +127,8 @@
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,0">
           <Button x:Name="SaveOneBtn" Content="Save this image" IsEnabled="False" Click="SaveOne_Click"/>
           <Button x:Name="CaptionAllBtn" Content="Caption selected" IsEnabled="False" Click="CaptionAll_Click"/>
+          <Button x:Name="DownloadModelBtn" Content="Download AI model" Click="DownloadModel_Click"
+                  ToolTip.Tip="One-time download; captioning then runs fully offline on your machine."/>
         </StackPanel>
         <TextBlock Grid.Row="4" x:Name="AiStatus" Classes="hint" Margin="0,8,0,0"
                    TextAlignment="Center" TextWrapping="Wrap"/>

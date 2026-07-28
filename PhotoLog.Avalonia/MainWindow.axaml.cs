@@ -20,7 +20,6 @@ public partial class MainWindow : Window
     PhotoItem? _preview;
     CancellationTokenSource? _cts;
     (DateOnly? Date, string Addr, int Dx, int Dy) _rendered;
-    bool _sizeWarned;
 
     public MainWindow() : this(null) { }
 
@@ -29,6 +28,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         PhotoGrid.ItemsSource = _items;
         OutBox.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "PhotoLog-output");
+        DownloadModelBtn.Content = $"Download AI model ({Caption.TotalBytes / 1e9:0.0} GB)";
+        DownloadModelBtn.IsVisible = !Caption.Ready;
         // Mica/acrylic needs a transparent window; where the compositor can't do it (most X11),
         // drop back to the opaque theme background so the window isn't see-through.
         Opened += (_, _) =>
@@ -174,8 +175,8 @@ public partial class MainWindow : Window
         PreviewImage.Source = item.Thumb;
         PreviewName.Text = item.Name + (item.Selected ? "  [selected ✓]" : "  [not selected]");
         CaptionBox.Text = item.Caption;
-        SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = CaptionBtn.IsEnabled = true;
-        CaptionAllBtn.IsEnabled = true;
+        SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = true; // manual captions never need the model
+        CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = Caption.Ready;
     }
 
     void ClearPreview()
@@ -236,38 +237,35 @@ public partial class MainWindow : Window
         }
         finally
         {
-            CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = _preview is not null;
+            CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = _preview is not null && Caption.Ready;
         }
     }
 
-    /// Dormant until the user says yes: the model is only fetched after an explicit confirmation.
-    async Task<bool> EnsureModel()
+    /// The model only arrives via the explicit Download button; Caption itself never downloads.
+    Task<bool> EnsureModel()
     {
-        if (Caption.Ready) return true;
+        if (Caption.Ready) return Task.FromResult(true);
+        AiStatus.Text = "Download the AI model first (button below) — captioning runs offline once it's in.";
+        return Task.FromResult(false);
+    }
+
+    async void DownloadModel_Click(object? sender, RoutedEventArgs e)
+    {
         var gb = Caption.TotalBytes / 1e9;
-        if (!_sizeWarned)
-        {
-            AiStatus.Text = $"Captioning needs a one-time {gb:0.0} GB download (Gemma 4 E2B, runs offline on CPU) "
-                          + "into " + Caption.Dir + ". Click Caption again to start.";
-            _sizeWarned = true;
-            return false;
-        }
-        CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = false;
+        DownloadModelBtn.IsEnabled = false;
         try
         {
+            AiStatus.Text = $"Downloading Gemma 4 E2B into {Caption.Dir}…";
             var progress = new Progress<double>(f => AiStatus.Text = $"Downloading model… {f * gb:0.00} / {gb:0.0} GB ({f:P0})");
             await Caption.Download(progress, CancellationToken.None);
-            AiStatus.Text = "Model ready.";
-            return true;
+            AiStatus.Text = "Model ready — captioning enabled.";
+            DownloadModelBtn.IsVisible = false;
+            if (_preview is not null) ShowPreview(_preview); // re-sync caption button states
         }
         catch (Exception ex)
         {
             AiStatus.Text = "Download failed: " + ex.Message;
-            return false;
-        }
-        finally
-        {
-            CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = _preview is not null;
+            DownloadModelBtn.IsEnabled = true;
         }
     }
 
