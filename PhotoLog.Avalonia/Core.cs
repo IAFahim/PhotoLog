@@ -83,16 +83,14 @@ internal static class Core
         return a.Length == 0 ? [date] : [date, .. a.ReplaceLineEndings("\n").Split('\n')];
     }
 
-    // presets mirror the Gradio reference's stamp(); [0] is the user-mandated default
-    public static readonly string[] Styles = ["Outlined + drop shadow (classic)", "Soft shadow", "Plain white"];
+    // default look: dark twin of the text peeking ~2px toward the top-right from behind the white text
+    public const int DefaultShadowX = 2, DefaultShadowY = -2;
 
-    public static void Stamp(Image img, string[] lines, string? style = null)
+    public static void Stamp(Image img, string[] lines, int shadowX = DefaultShadowX, int shadowY = DefaultShadowY)
     {
-        style ??= Styles[0];
         var size = Math.Max(14, img.Width / 30);
         var font = Family.CreateFont(size);
         var text = string.Join('\n', lines);
-        var off = Math.Max(1, size / 10);
         float x = img.Width - size / 2, y = size / 2;
         RichTextOptions At(float dx, float dy) => new(font)
         {
@@ -104,28 +102,27 @@ internal static class Core
             // 1.33 is the closest single constant; exact only if you measure font metrics per size.
             LineSpacing = 4f / 3f,
         };
+        // offsets are in preview-scale pixels; scaling with font size keeps exports matching the preview
+        float S(int v) => (float)(v * size / 30.0);
         img.Mutate(c =>
         {
-            if (style != Styles[2])
-                c.DrawText(At(off, off), text, Color.FromRgb(50, 50, 50)); // drop shadow
-            if (style == Styles[0])
-                c.DrawText(At(0, 0), text, Brushes.Solid(Color.White),
-                           Pens.Solid(Color.FromRgb(60, 60, 60), Math.Max(1, size / 16)));
-            else
-                c.DrawText(At(0, 0), text, Color.White);
+            if (shadowX != 0 || shadowY != 0)
+                c.DrawText(At(S(shadowX), S(shadowY)), text, Color.FromRgb(40, 40, 40));
+            c.DrawText(At(0, 0), text, Color.White);
         });
     }
 
     /// Stamped preview, decoded small (JPEG scaled DCT) so a folder scan stays fast.
     public static (byte[] Jpeg, string Date) Thumb(string path, DateOnly? overrideDate, string? addr,
-                                                   int maxSide = 768, string? style = null)
+                                                   int maxSide = 768,
+                                                   int shadowX = DefaultShadowX, int shadowY = DefaultShadowY)
     {
         using var img = Image.Load(new DecoderOptions { TargetSize = new Size(maxSide, maxSide) }, path);
         img.Mutate(c => c.AutoOrient());
         if (img.Width > maxSide || img.Height > maxSide)
             img.Mutate(c => c.Resize(new ResizeOptions { Size = new Size(maxSide, maxSide), Mode = ResizeMode.Max }));
         var lines = StampLines(img, path, overrideDate, addr);
-        Stamp(img, lines, style);
+        Stamp(img, lines, shadowX, shadowY);
         using var ms = new MemoryStream();
         img.SaveAsJpeg(ms, new JpegEncoder { Quality = 88 });
         return (ms.ToArray(), lines[0]);
@@ -133,12 +130,12 @@ internal static class Core
 
     /// Full-resolution stamped copy into outDir. Originals are never touched.
     public static string Export(string src, string name, string outDir, DateOnly? overrideDate, string? addr,
-                                string? style = null)
+                                int shadowX = DefaultShadowX, int shadowY = DefaultShadowY)
     {
         Directory.CreateDirectory(outDir);
         using var img = Image.Load(src);
         img.Mutate(c => c.AutoOrient());
-        Stamp(img, StampLines(img, src, overrideDate, addr), style);
+        Stamp(img, StampLines(img, src, overrideDate, addr), shadowX, shadowY);
         var dest = Path.Combine(outDir, name);
         img.Save(dest); // encoder from extension; ImageSharp re-writes the EXIF profile it read
         return dest;
@@ -260,12 +257,14 @@ internal static class Core
                   "scoped export wrote the checked photo's stamp");
             Check(Fields(false, null, null) == Fields(false, jul28, "x"), "nothing selected -> override changes nothing");
 
-            // stamp styles: the three presets render pairwise differently; default == Styles[0]
-            var sj = Styles.Select(s => Thumb(found[0].Path, null, "", style: s).Jpeg).ToArray();
-            Check(!sj[0].SequenceEqual(sj[1]) && !sj[1].SequenceEqual(sj[2]) && !sj[0].SequenceEqual(sj[2]),
-                  "three stamp styles render pairwise differently");
-            Check(Thumb(found[0].Path, null, "").Jpeg.SequenceEqual(sj[0]),
-                  "default style is outlined + drop shadow");
+            // shadow offset is user-controlled; default (+2,-2) = dark twin toward the top-right
+            var defJpeg = Thumb(found[0].Path, null, "").Jpeg;
+            Check(defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 2, shadowY: -2).Jpeg),
+                  "default shadow offset is (+2,-2)");
+            Check(!defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 0, shadowY: 0).Jpeg),
+                  "offset (0,0) removes the dark twin");
+            Check(!defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 6, shadowY: 6).Jpeg),
+                  "custom offsets change the render");
 
             Console.WriteLine("selfcheck OK");
             return 0;

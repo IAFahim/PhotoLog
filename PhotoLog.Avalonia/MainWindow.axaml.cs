@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     readonly ObservableCollection<PhotoItem> _items = [];
     PhotoItem? _preview;
     CancellationTokenSource? _cts;
-    (DateOnly? Date, string Addr, string Style) _rendered;
+    (DateOnly? Date, string Addr, int Dx, int Dy) _rendered;
 
     public MainWindow() : this(null) { }
 
@@ -27,8 +27,6 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         PhotoGrid.ItemsSource = _items;
-        StyleCombo.ItemsSource = Core.Styles;
-        StyleCombo.SelectedIndex = 0;
         OutBox.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "PhotoLog-output");
         if (string.IsNullOrWhiteSpace(initialFolder)) return;
         FolderBox.Text = initialFolder;
@@ -39,8 +37,9 @@ public partial class MainWindow : Window
     // replaces only y/m/d, never the photo's clock (Core.DateLine does the combining)
     DateOnly? OverrideDate => DatePart.SelectedDate is { } d ? DateOnly.FromDateTime(d) : null;
 
-    // global rendering setting — unlike date/address it applies to every preview and export
-    string StampStyle => StyleCombo.SelectedItem as string ?? Core.Styles[0];
+    // global rendering settings — unlike date/address they apply to every preview and export
+    int ShadowX => (int)(ShadowXBox.Value ?? Core.DefaultShadowX);
+    int ShadowY => (int)(ShadowYBox.Value ?? Core.DefaultShadowY);
 
     async void Browse_Click(object? sender, RoutedEventArgs e)
     {
@@ -62,13 +61,13 @@ public partial class MainWindow : Window
 
     // date/address/style changes re-render every preview but must never touch the selection
     async void DateChanged(object? sender, SelectionChangedEventArgs e) => await Refresh();
-    async void StyleChanged(object? sender, SelectionChangedEventArgs e) => await Refresh();
+    async void StyleChanged(object? sender, NumericUpDownValueChangedEventArgs e) => await Refresh();
     async void Refresh_Click(object? sender, RoutedEventArgs e) => await Refresh();
 
     // leaving the address box only costs a re-render when the text actually changed
     async void Addr_LostFocus(object? sender, RoutedEventArgs e)
     {
-        if ((OverrideDate, AddrBox.Text ?? "", StampStyle) != _rendered) await Refresh();
+        if ((OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY) != _rendered) await Refresh();
     }
 
     async void OutBrowse_Click(object? sender, RoutedEventArgs e)
@@ -85,9 +84,9 @@ public partial class MainWindow : Window
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
         Status.Text = $"{_items.Count} image(s) loaded — rendering previews…";
-        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", StampStyle, _cts.Token);
+        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY, _cts.Token);
         if (_cts.IsCancellationRequested) return;
-        _rendered = (OverrideDate, AddrBox.Text ?? "", StampStyle);
+        _rendered = (OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY);
         Status.Text = $"{_items.Count} image(s) loaded.";
         if (_preview is not null) ShowPreview(_preview);
     }
@@ -117,13 +116,13 @@ public partial class MainWindow : Window
         UpdateCount();
         Status.Text = $"{_items.Count} image(s) loaded — rendering previews…";
 
-        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", StampStyle, ct);
+        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY, ct);
         if (ct.IsCancellationRequested) return;
-        _rendered = (OverrideDate, AddrBox.Text ?? "", StampStyle);
+        _rendered = (OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY);
         Status.Text = $"{_items.Count} image(s) loaded.";
     }
 
-    static async Task RenderThumbs(IReadOnlyList<PhotoItem> items, DateOnly? date, string addr, string style,
+    static async Task RenderThumbs(IReadOnlyList<PhotoItem> items, DateOnly? date, string addr, int dx, int dy,
                                    CancellationToken ct)
     {
         try
@@ -136,7 +135,7 @@ public partial class MainWindow : Window
                     try
                     {
                         var (d, a) = Core.Fields(item.Selected, date, addr);
-                        var (jpeg, line) = Core.Thumb(item.Path, d, a, style: style);
+                        var (jpeg, line) = Core.Thumb(item.Path, d, a, shadowX: dx, shadowY: dy);
                         var bmp = new Bitmap(new MemoryStream(jpeg));
                         Dispatcher.UIThread.Post(() => { item.Thumb = bmp; item.Caption = $"{item.Name} — {line}"; });
                     }
@@ -159,7 +158,7 @@ public partial class MainWindow : Window
         UpdateCount();
         ShowPreview(item);
         if (!HasOverride) return;
-        await RenderThumbs([item], OverrideDate, AddrBox.Text ?? "", StampStyle, CancellationToken.None);
+        await RenderThumbs([item], OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY, CancellationToken.None);
         if (_preview == item) ShowPreview(item);
     }
 
@@ -214,7 +213,7 @@ public partial class MainWindow : Window
         if (outDir.Length == 0) { Result.Text = "Set an output folder first."; return; }
         var date = OverrideDate;
         var addr = AddrBox.Text ?? "";
-        var style = StampStyle;
+        var (dx, dy) = (ShadowX, ShadowY);
         ApplyBtn.IsEnabled = SaveOneBtn.IsEnabled = false;
         Result.Text = $"Writing {items.Count} image(s) to {outDir}…";
         try
@@ -222,7 +221,7 @@ public partial class MainWindow : Window
             await Task.Run(() => Parallel.ForEach(items, i =>
             {
                 var (d, a) = Core.Fields(i.Selected, date, addr);
-                Core.Export(i.Path, i.Name, outDir, d, a, style);
+                Core.Export(i.Path, i.Name, outDir, d, a, dx, dy);
             }));
             Result.Text = $"{verb} — {items.Count} image(s) written to {outDir}";
         }
