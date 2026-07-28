@@ -84,9 +84,9 @@ internal static class Core
     public static string[] StampLines(Image img, string path, DateOnly? overrideDate, string? addr, string? caption = null) =>
         [DateLine(img, path, overrideDate), .. Lines(addr), .. Lines(caption)];
 
-    // default look: dark twin of the text peeking ~2px toward the top-right from behind the white text.
+    // default look: dark twin of the text peeking ~1px toward the top-right from behind the white text.
     // Unlike date/address these are global - they apply to every image, selected or not.
-    public const int DefaultShadowX = 2, DefaultShadowY = -2;
+    public const int DefaultShadowX = 1, DefaultShadowY = -1;
 
     public static void Stamp(Image img, string[] lines, int shadowX = DefaultShadowX, int shadowY = DefaultShadowY)
     {
@@ -303,10 +303,10 @@ internal static class Core
 
             CaptionCheck(tmp);
 
-            // shadow offset is user-controlled; default (+2,-2) = dark twin toward the top-right
+            // shadow offset is user-controlled; default (+1,-1) = dark twin toward the top-right
             var defJpeg = Thumb(found[0].Path, null, "").Jpeg;
-            Check(defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 2, shadowY: -2).Jpeg),
-                  "default shadow offset is (+2,-2)");
+            Check(defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 1, shadowY: -1).Jpeg),
+                  "default shadow offset is (+1,-1)");
             Check(!defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 0, shadowY: 0).Jpeg),
                   "offset (0,0) removes the dark twin");
             Check(!defJpeg.SequenceEqual(Thumb(found[0].Path, null, "", shadowX: 6, shadowY: 6).Jpeg),
