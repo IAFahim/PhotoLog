@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -653,8 +654,8 @@ public partial class MainWindow : Window
         if (SelectOverview is not null) SelectOverview.IsVisible = mapOn;
         if (PhotoScroll is not null)
             PhotoScroll.VerticalScrollBarVisibility = mapOn
-                ? Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden
-                : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
+                ? ScrollBarVisibility.Hidden
+                : ScrollBarVisibility.Auto;
         RebuildSelectedList();
         SyncCaptionButtons();
         ScheduleSelectionMap();
