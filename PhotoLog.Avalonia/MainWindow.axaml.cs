@@ -33,6 +33,14 @@ public partial class MainWindow : Window
         PhotoGrid.ItemsSource = _days;
         DownloadModelBtn.Content = $"Download caption model ({Caption.TotalBytes / 1e9:0.0} GB)";
         DownloadModelBtn.IsVisible = !Caption.Ready;
+        // COCO groups from YoloPick — every class is reachable; no fake screenshot/doc options
+        if (AiCategoryBox is not null)
+        {
+            AiCategoryBox.Items.Clear();
+            foreach (var (name, _) in YoloPick.Groups)
+                AiCategoryBox.Items.Add(new ComboBoxItem { Content = name });
+            AiCategoryBox.SelectedIndex = 0;
+        }
 
         ApplySettings(Settings.Load());
         // CLI folder wins over the remembered last folder; always try to open one on launch
@@ -41,7 +49,11 @@ public partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(FolderBox.Text))
             Opened += async (_, _) => await Rescan();
 
-        Closing += (_, _) => Persist(); // last-chance flush (also saved on each change)
+        Closing += (_, _) =>
+        {
+            YoloPick.SaveCache();
+            Persist();
+        };
     }
 
     void ApplySettings(Settings.Data s)
@@ -421,23 +433,34 @@ public partial class MainWindow : Window
         AiProgress.IsIndeterminate = false;
         AiProgress.Value = 0;
         var hit = 0;
+        var cached = 0;
+        var ran = 0;
         try
         {
             for (var i = 0; i < _items.Count; i++)
             {
                 var item = _items[i];
-                AiStatus.Text = $"AI select “{cat}” (YOLO): {i + 1} of {_items.Count} — {item.Name}…";
                 AiProgress.Value = 100.0 * i / _items.Count;
-                // YOLO runs on the thread pool so the UI stays responsive.
-                var yes = await YoloPick.Matches(item.Path, cat, CancellationToken.None);
+                // First time: YOLO detect + cache labels. Next category: filter only (FromCache).
+                var (yes, fromCache) = await YoloPick.Matches(item.Path, cat, CancellationToken.None);
+                if (fromCache) cached++; else ran++;
+                AiStatus.Text = fromCache
+                    ? $"AI select “{cat}”: {i + 1}/{_items.Count} (cache) — {item.Name}"
+                    : $"AI select “{cat}”: {i + 1}/{_items.Count} (YOLO…) — {item.Name}";
                 item.Selected = yes;
                 if (yes) hit++;
             }
             AiProgress.Value = 100;
+            YoloPick.SaveCache(); // disk so next session is free too
             UpdateCount();
+            var how = ran == 0
+                ? $"all {_items.Count} from cache"
+                : cached == 0
+                    ? $"{ran} YOLO detect(s), cached for next pick"
+                    : $"{ran} YOLO + {cached} cache";
             AiStatus.Text = hit == 0
-                ? $"AI select “{cat}”: no matches (YOLO COCO objects)."
-                : $"AI select “{cat}”: selected {hit} of {_items.Count} (YOLO).";
+                ? $"AI select “{cat}”: no matches ({how}). COCO objects only."
+                : $"AI select “{cat}”: selected {hit} of {_items.Count} ({how}).";
             if (HasOverride) await Refresh();
         }
         catch (Exception ex)

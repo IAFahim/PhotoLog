@@ -159,28 +159,20 @@
                 <Button Classes="quiet" Content="Select none" Padding="12,6" Click="SelectNone_Click"/>
               </StackPanel>
             </Grid>
-            <!-- AI select: YOLO26n object detect (~10 MB) — fast; Gemma is caption-only. -->
+            <!-- AI select: YOLO COCO-80 only (not free-form). Detect once, cache labels, re-filter free. -->
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Classes="hint" Text="AI select" VerticalAlignment="Center"
-                         ToolTip.Tip="Uses local YOLO26n (~10 MB ONNX, COCO objects). Auto-downloads on first use. Much faster than Gemma for multi-select."/>
-              <ComboBox x:Name="AiCategoryBox" Width="140" SelectedIndex="0"
-                        ToolTip.Tip="COCO object groups YOLO can detect (furniture, people, animals, …)">
-                <ComboBoxItem Content="Furniture"/>
-                <ComboBoxItem Content="Outdoors"/>
-                <ComboBoxItem Content="People"/>
-                <ComboBoxItem Content="Food"/>
-                <ComboBoxItem Content="Vehicles"/>
-                <ComboBoxItem Content="Animals"/>
-                <ComboBoxItem Content="Screenshots"/>
-                <ComboBoxItem Content="Indoor"/>
-                <ComboBoxItem Content="Text / documents"/>
+                         ToolTip.Tip="YOLO26n: fixed 80 COCO object classes (not free-form captions). First pass detects; later category picks re-use the cache — near instant."/>
+              <ComboBox x:Name="AiCategoryBox" Width="150" SelectedIndex="0"
+                        ToolTip.Tip="COCO object groups covering all 80 classes YOLO knows.">
+                <!-- filled in code from YoloPick.Groups so list stays in sync -->
               </ComboBox>
               <TextBox x:Name="AiCustomBox" Width="140"
-                       PlaceholderText="or COCO label…"
-                       ToolTip.Tip="Custom overrides the dropdown — use a COCO class name (dog, chair, car, …)"/>
+                       PlaceholderText="or dog / chair…"
+                       ToolTip.Tip="Overrides dropdown. Any COCO class name (dog, chair, laptop, pizza, …). Not free-form scenes."/>
               <Button x:Name="AiSelectBtn" Classes="quiet" Content="AI select"
                       Padding="12,6" Click="AiSelect_Click"
-                      ToolTip.Tip="Scan every photo with YOLO and select matches. First run downloads ~10 MB."/>
+                      ToolTip.Tip="First scan runs YOLO and caches labels. Next AI select on the same folder only filters the cache."/>
             </StackPanel>
           </StackPanel>
 
