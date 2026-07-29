@@ -117,23 +117,11 @@
       <Border Classes="card" Margin="0,0,6,0" Padding="10">
         <DockPanel>
           <StackPanel x:Name="LibToolbar" DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,6" IsVisible="False">
-            <!-- Select all/none left · ◀ count ▶ right (same pattern as bottom strip) -->
-            <Grid ColumnDefinitions="Auto,*,Auto">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <Button Classes="quiet" Content="Select all" Padding="10,5" Click="SelectAll_Click"/>
-                <Button Classes="quiet" Content="Select none" Padding="10,5" Click="SelectNone_Click"/>
-              </StackPanel>
-              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <Button x:Name="PrevSelBtn" Classes="quiet" Content="◀" Padding="10,5"
-                        IsEnabled="False" Click="PrevSelected_Click"
-                        ToolTip.Tip="Previous selected"/>
-                <TextBlock x:Name="CountText" Classes="section" VerticalAlignment="Center"
-                           Text="0 of 0 selected"/>
-                <Button x:Name="NextSelBtn" Classes="quiet" Content="▶" Padding="10,5"
-                        IsEnabled="False" Click="NextSelected_Click"
-                        ToolTip.Tip="Next selected"/>
-              </StackPanel>
-            </Grid>
+            <!-- Only bulk select up here; count + ◀▶ live on the bottom filmstrip -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="quiet" Content="Select all" Padding="10,5" Click="SelectAll_Click"/>
+              <Button Classes="quiet" Content="Select none" Padding="10,5" Click="SelectNone_Click"/>
+            </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock Classes="hint" Text="AI" VerticalAlignment="Center"
                          ToolTip.Tip="YOLO26n COCO objects. Detect once, cache labels."/>

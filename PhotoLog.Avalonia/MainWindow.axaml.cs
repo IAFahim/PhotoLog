@@ -636,7 +636,6 @@ public partial class MainWindow : Window
     void UpdateCount()
     {
         var sel = _items.Count(i => i.Selected);
-        CountText.Text = $"{sel} of {_items.Count} selected";
         // selection mode = any selected → empty circles + day checks; browse = clean (GP Image #2)
         var mode = sel > 0;
         foreach (var i in _items) i.InSelectionMode = mode;
@@ -645,8 +644,7 @@ public partial class MainWindow : Window
             d.InSelectionMode = mode;
             d.RefreshSelection();
         }
-        if (PrevSelBtn is not null) PrevSelBtn.IsEnabled = sel > 0;
-        if (NextSelBtn is not null) NextSelBtn.IsEnabled = sel > 0;
+        // Nav + count only on bottom filmstrip (not top toolbar).
         if (PrevSelBtn2 is not null) PrevSelBtn2.IsEnabled = sel > 0;
         if (NextSelBtn2 is not null) NextSelBtn2.IsEnabled = sel > 0;
         // One scroll track: hide system bar while the selection-mark rail is showing.
@@ -671,7 +669,7 @@ public partial class MainWindow : Window
         var n = _selectedList.Count;
         SelectedListHost.IsVisible = n > 0;
         if (SelectedListHeader is not null)
-            SelectedListHeader.Text = n == 0 ? "0" : $"{n} selected";
+            SelectedListHeader.Text = n == 0 ? "0" : $"{n} of {_items.Count} selected";
     }
 
     void SelectedListItem_Click(object? sender, PointerPressedEventArgs e)
