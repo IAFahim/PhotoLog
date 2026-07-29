@@ -158,6 +158,12 @@
               <TextBlock x:Name="CountText" Classes="section" Text="0 of 0 selected"
                          VerticalAlignment="Center"/>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <Button x:Name="PrevSelBtn" Classes="quiet" Content="↑ sel" Padding="10,6"
+                        IsEnabled="False" Click="PrevSelected_Click"
+                        ToolTip.Tip="Jump to previous selected photo (like editor find prev)"/>
+                <Button x:Name="NextSelBtn" Classes="quiet" Content="↓ sel" Padding="10,6"
+                        IsEnabled="False" Click="NextSelected_Click"
+                        ToolTip.Tip="Jump to next selected photo (like editor find next)"/>
                 <Button Classes="quiet" Content="Select all" Padding="12,6" Click="SelectAll_Click"/>
                 <Button Classes="quiet" Content="Select none" Padding="12,6" Click="SelectNone_Click"/>
               </StackPanel>
@@ -211,98 +217,122 @@
               </Grid>
             </Border>
 
-            <ScrollViewer x:Name="PhotoScroll" IsVisible="False"
-                          HorizontalScrollBarVisibility="Disabled">
-              <ItemsControl x:Name="PhotoGrid">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="local:DayGroup">
-                    <StackPanel Margin="0,0,0,10">
-                      <Border Cursor="Hand" Background="Transparent"
-                              ToolTip.Tip="Select or deselect every photo from this day"
-                              PointerPressed="DayHeader_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,10,2,8">
-                          <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
-                                  BorderBrush="{DynamicResource BrushBorderMuted}" Background="{DynamicResource BrushCard}"
-                                  IsVisible="{Binding ShowEmptyDayCheck}"/>
-                          <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
-                                  BorderBrush="{DynamicResource BrushSelect}" Background="{DynamicResource BrushSelect}"
-                                  IsVisible="{Binding ShowPartialDayCheck}">
-                            <Path Width="10" Height="2"
-                                  HorizontalAlignment="Center" VerticalAlignment="Center"
-                                  Stretch="Fill" Stroke="White" StrokeThickness="2"
-                                  StrokeLineCap="Round" Data="M 0,1 L 10,1"/>
-                          </Border>
-                          <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
-                                  BorderBrush="{DynamicResource BrushSelect}" Background="{DynamicResource BrushSelect}"
-                                  IsVisible="{Binding ShowAllDayCheck}">
-                            <Path Width="12" Height="12"
-                                  HorizontalAlignment="Center" VerticalAlignment="Center"
-                                  Stretch="Uniform" Stroke="White" StrokeThickness="2"
-                                  StrokeLineCap="Round" StrokeJoin="Round"
-                                  Data="M 1,6 L 4.5,9.5 L 11,2"/>
-                          </Border>
-                          <TextBlock Text="{Binding Header}" FontSize="16" FontWeight="SemiBold"
-                                     VerticalAlignment="Center"/>
-                        </StackPanel>
-                      </Border>
-                      <ItemsControl ItemsSource="{Binding Photos}">
-                        <ItemsControl.ItemsPanel>
-                          <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal"/>
-                          </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                          <DataTemplate x:DataType="local:PhotoItem">
-                            <!-- Cell size = full image aspect scaled into max box (never crop). -->
-                            <Border Height="{Binding CellH}" Width="{Binding CellW}" Margin="3"
-                                    Background="Transparent" Cursor="Hand"
-                                    ToolTip.Tip="{Binding Tip}"
-                                    PointerPressed="Cell_Click">
-                              <Panel>
-                                <Border CornerRadius="10" Margin="2"
-                                        Background="{DynamicResource BrushSelectPlate}"
-                                        BoxShadow="0 2 12 0 #20000000"
-                                        IsVisible="{Binding Selected}"/>
-                                <!-- left accent ribbon when selected (shows place in the scroll strip) -->
-                                <Border Width="4" HorizontalAlignment="Left" VerticalAlignment="Stretch"
-                                        Margin="0,4" CornerRadius="2"
-                                        Background="{DynamicResource BrushSelect}"
-                                        IsVisible="{Binding Selected}" ZIndex="5"/>
-                                <!-- frame matches image aspect → Uniform shows everything; tick on photo -->
-                                <Border Margin="{Binding ThumbMargin}" CornerRadius="8"
-                                        ClipToBounds="True" Background="{DynamicResource BrushThumbBg}">
-                                  <Panel>
-                                    <Image Source="{Binding Thumb}" Stretch="Uniform"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    <Border Width="24" Height="24" Margin="6" ZIndex="4"
-                                            HorizontalAlignment="Left" VerticalAlignment="Top"
-                                            CornerRadius="12" BorderThickness="2"
-                                            BorderBrush="#FFFFFF" Background="#99000000"
-                                            IsVisible="{Binding ShowEmptyCheck}"/>
-                                    <Border Width="24" Height="24" Margin="6" ZIndex="4"
-                                            HorizontalAlignment="Left" VerticalAlignment="Top"
-                                            CornerRadius="12" BorderThickness="2"
-                                            BorderBrush="{DynamicResource BrushSelect}"
-                                            Background="{DynamicResource BrushSelect}"
-                                            IsVisible="{Binding Selected}">
-                                      <Path Width="11" Height="11"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            Stretch="Uniform" Stroke="White" StrokeThickness="2.2"
-                                            StrokeLineCap="Round" StrokeJoin="Round"
-                                            Data="M 1,6 L 4.5,9.5 L 11,2"/>
-                                    </Border>
-                                  </Panel>
-                                </Border>
-                              </Panel>
+            <!-- Library + VS Code-style overview ruler (ticks = selected photos). -->
+            <Grid x:Name="LibScrollHost" IsVisible="False" ColumnDefinitions="*,Auto">
+              <ScrollViewer x:Name="PhotoScroll"
+                            HorizontalScrollBarVisibility="Disabled"
+                            ScrollChanged="PhotoScroll_ScrollChanged">
+                <ItemsControl x:Name="PhotoGrid">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:DayGroup">
+                      <StackPanel Margin="0,0,0,10">
+                        <Border Cursor="Hand" Background="Transparent"
+                                ToolTip.Tip="Select or deselect every photo from this day"
+                                PointerPressed="DayHeader_Click">
+                          <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,10,2,8">
+                            <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
+                                    BorderBrush="{DynamicResource BrushBorderMuted}" Background="{DynamicResource BrushCard}"
+                                    IsVisible="{Binding ShowEmptyDayCheck}"/>
+                            <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
+                                    BorderBrush="{DynamicResource BrushSelect}" Background="{DynamicResource BrushSelect}"
+                                    IsVisible="{Binding ShowPartialDayCheck}">
+                              <Path Width="10" Height="2"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Stretch="Fill" Stroke="White" StrokeThickness="2"
+                                    StrokeLineCap="Round" Data="M 0,1 L 10,1"/>
                             </Border>
-                          </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
-                    </StackPanel>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
+                            <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
+                                    BorderBrush="{DynamicResource BrushSelect}" Background="{DynamicResource BrushSelect}"
+                                    IsVisible="{Binding ShowAllDayCheck}">
+                              <Path Width="12" Height="12"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Stretch="Uniform" Stroke="White" StrokeThickness="2"
+                                    StrokeLineCap="Round" StrokeJoin="Round"
+                                    Data="M 1,6 L 4.5,9.5 L 11,2"/>
+                            </Border>
+                            <TextBlock Text="{Binding Header}" FontSize="16" FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
+                          </StackPanel>
+                        </Border>
+                        <ItemsControl ItemsSource="{Binding Photos}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                              <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="local:PhotoItem">
+                              <!-- Cell size = full image aspect scaled into max box (never crop). -->
+                              <Border Height="{Binding CellH}" Width="{Binding CellW}" Margin="3"
+                                      Background="Transparent" Cursor="Hand"
+                                      ToolTip.Tip="{Binding Tip}"
+                                      PointerPressed="Cell_Click">
+                                <Panel>
+                                  <Border CornerRadius="10" Margin="2"
+                                          Background="{DynamicResource BrushSelectPlate}"
+                                          BoxShadow="0 2 12 0 #20000000"
+                                          IsVisible="{Binding Selected}"/>
+                                  <Border Width="4" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                                          Margin="0,4" CornerRadius="2"
+                                          Background="{DynamicResource BrushSelect}"
+                                          IsVisible="{Binding Selected}" ZIndex="5"/>
+                                  <Border Margin="{Binding ThumbMargin}" CornerRadius="8"
+                                          ClipToBounds="True" Background="{DynamicResource BrushThumbBg}">
+                                    <Panel>
+                                      <Image Source="{Binding Thumb}" Stretch="Uniform"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                      <Border Width="24" Height="24" Margin="6" ZIndex="4"
+                                              HorizontalAlignment="Left" VerticalAlignment="Top"
+                                              CornerRadius="12" BorderThickness="2"
+                                              BorderBrush="#FFFFFF" Background="#99000000"
+                                              IsVisible="{Binding ShowEmptyCheck}"/>
+                                      <Border Width="24" Height="24" Margin="6" ZIndex="4"
+                                              HorizontalAlignment="Left" VerticalAlignment="Top"
+                                              CornerRadius="12" BorderThickness="2"
+                                              BorderBrush="{DynamicResource BrushSelect}"
+                                              Background="{DynamicResource BrushSelect}"
+                                              IsVisible="{Binding Selected}">
+                                        <Path Width="11" Height="11"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Stretch="Uniform" Stroke="White" StrokeThickness="2.2"
+                                              StrokeLineCap="Round" StrokeJoin="Round"
+                                              Data="M 1,6 L 4.5,9.5 L 11,2"/>
+                                      </Border>
+                                    </Panel>
+                                  </Border>
+                                </Panel>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+
+              <!-- Overview ruler: purple ticks = selected photos (editor-style scroll map). -->
+              <Border Grid.Column="1" x:Name="SelectOverview" Width="18" Margin="6,0,0,0"
+                      IsVisible="False" Cursor="Hand" ClipToBounds="True"
+                      CornerRadius="6" BorderThickness="1"
+                      BorderBrush="{DynamicResource BrushBorder}"
+                      Background="{DynamicResource BrushField}"
+                      ToolTip.Tip="Selection map (like editor scrollbar marks). Click a tick to jump there."
+                      PointerPressed="SelectOverview_Pressed"
+                      SizeChanged="SelectOverview_SizeChanged">
+                <Panel>
+                  <!-- faint track -->
+                  <Border Margin="4,2" CornerRadius="3"
+                          Background="{DynamicResource BrushBorder}" Opacity="0.35"/>
+                  <!-- current viewport (semi-transparent band) -->
+                  <Border x:Name="SelectViewport" Margin="3,0" HorizontalAlignment="Stretch"
+                          Height="24" VerticalAlignment="Top" CornerRadius="3"
+                          Background="{DynamicResource BrushText}" Opacity="0.12"
+                          IsHitTestVisible="False"/>
+                  <Canvas x:Name="SelectMarks" Margin="2,2"/>
+                </Panel>
+              </Border>
+            </Grid>
           </Grid>
         </DockPanel>
       </Border>

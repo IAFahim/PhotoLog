@@ -5,12 +5,15 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace PhotoLog.Avalonia;
 
@@ -277,7 +280,7 @@ public partial class MainWindow : Window
             _days.Clear();
             UpdateCount();
             EmptyGrid.IsVisible = true;
-            PhotoScroll.IsVisible = false;
+            LibScrollHost.IsVisible = false;
             LibToolbar.IsVisible = false;
             Status.Text = Directory.Exists(folder)
                 ? "No photos in that folder — try another path."
@@ -287,7 +290,7 @@ public partial class MainWindow : Window
 
         _items.Clear();
         EmptyGrid.IsVisible = false;
-        PhotoScroll.IsVisible = true;
+        LibScrollHost.IsVisible = true;
         LibToolbar.IsVisible = true;
         foreach (var s in found)
             _items.Add(new PhotoItem { Name = s.Name, Path = s.Path, Taken = s.Taken, Tip = s.Name });
@@ -301,6 +304,7 @@ public partial class MainWindow : Window
         _rendered = (OverrideDate, OverrideTime, AddrBox.Text ?? "", CurrentDrop, ShadowX, ShadowY);
         Status.Text = $"{_items.Count} photo(s) loaded. Select some, then Apply.";
         Persist(); // remember last folder once a scan succeeds
+        ScheduleSelectionMap(); // thumbs sized → map positions valid
     }
 
     static async Task RenderThumbs(IReadOnlyList<PhotoItem> items, DateOnly? date, TimeOnly? time, string addr,
@@ -627,7 +631,172 @@ public partial class MainWindow : Window
             d.InSelectionMode = mode;
             d.RefreshSelection();
         }
+        if (PrevSelBtn is not null) PrevSelBtn.IsEnabled = sel > 0;
+        if (NextSelBtn is not null) NextSelBtn.IsEnabled = sel > 0;
+        if (SelectOverview is not null) SelectOverview.IsVisible = mode && LibScrollHost.IsVisible;
         SyncCaptionButtons();
+        ScheduleSelectionMap();
+    }
+
+    // --- Selection map (editor-style overview ruler) + prev/next jump ---
+
+    bool _mapScheduled;
+
+    void ScheduleSelectionMap()
+    {
+        if (_mapScheduled) return;
+        _mapScheduled = true;
+        // After layout so cell Bounds / Extent are real (same idea as VS Code decorating after paint).
+        Dispatcher.UIThread.Post(() =>
+        {
+            _mapScheduled = false;
+            RebuildSelectionMap();
+            UpdateViewportMark();
+        }, DispatcherPriority.Loaded);
+    }
+
+    void PhotoScroll_ScrollChanged(object? sender, ScrollChangedEventArgs e) => UpdateViewportMark();
+    void SelectOverview_SizeChanged(object? sender, SizeChangedEventArgs e) => ScheduleSelectionMap();
+
+    void RebuildSelectionMap()
+    {
+        if (SelectMarks is null || PhotoScroll is null || PhotoGrid is null) return;
+        SelectMarks.Children.Clear();
+        var selected = _items.Where(i => i.Selected).ToList();
+        if (selected.Count == 0) return;
+
+        var extent = PhotoScroll.Extent.Height;
+        var railH = SelectMarks.Bounds.Height;
+        if (extent < 1 || railH < 1)
+        {
+            // layout not ready — try once more next frame
+            ScheduleSelectionMap();
+            return;
+        }
+
+        IBrush? brush = null;
+        if (Application.Current?.Resources.TryGetResource("BrushSelect", null, out var r) == true
+            && r is IBrush b) brush = b;
+        brush ??= new SolidColorBrush(Color.Parse("#8B5CF6"));
+
+        // Map each selected cell’s Y into the rail (0 = top of library, 1 = bottom).
+        foreach (var item in selected)
+        {
+            var cell = FindVisualFor(item);
+            if (cell is null) continue;
+            var pt = cell.TranslatePoint(new Point(0, cell.Bounds.Height * 0.5), PhotoGrid);
+            if (pt is null) continue;
+            var frac = Math.Clamp(pt.Value.Y / extent, 0, 1);
+            var markH = Math.Max(3, Math.Min(10, railH * 0.02));
+            var top = Math.Clamp(frac * railH - markH / 2, 0, Math.Max(0, railH - markH));
+            var mark = new Border
+            {
+                Width = 12,
+                Height = markH,
+                CornerRadius = new CornerRadius(2),
+                Background = brush,
+                Tag = item,
+                Cursor = new Cursor(StandardCursorType.Hand),
+            };
+            ToolTip.SetTip(mark, item.Name);
+            Canvas.SetLeft(mark, 1);
+            Canvas.SetTop(mark, top);
+            SelectMarks.Children.Add(mark);
+        }
+    }
+
+    void UpdateViewportMark()
+    {
+        if (SelectViewport is null || PhotoScroll is null || SelectMarks is null) return;
+        var extent = PhotoScroll.Extent.Height;
+        var view = PhotoScroll.Viewport.Height;
+        var railH = SelectMarks.Bounds.Height;
+        if (extent < 1 || railH < 1 || view < 1)
+        {
+            SelectViewport.IsVisible = false;
+            return;
+        }
+        SelectViewport.IsVisible = true;
+        var maxOff = Math.Max(1, extent - view);
+        var topFrac = PhotoScroll.Offset.Y / extent;
+        var hFrac = view / extent;
+        var h = Math.Max(12, hFrac * railH);
+        var top = Math.Clamp(topFrac * railH, 0, Math.Max(0, railH - h));
+        SelectViewport.Height = h;
+        SelectViewport.Margin = new Thickness(3, top + 2, 3, 0);
+    }
+
+    void SelectOverview_Pressed(object? sender, PointerPressedEventArgs e)
+    {
+        // Click a tick → that photo; click empty track → scroll that fraction of the library.
+        if (e.Source is Control { Tag: PhotoItem hit })
+        {
+            JumpToPhoto(hit);
+            e.Handled = true;
+            return;
+        }
+        if (SelectMarks is null || PhotoScroll is null) return;
+        var y = e.GetPosition(SelectMarks).Y;
+        var h = SelectMarks.Bounds.Height;
+        if (h < 1) return;
+        var extent = PhotoScroll.Extent.Height;
+        var view = PhotoScroll.Viewport.Height;
+        var max = Math.Max(0, extent - view);
+        PhotoScroll.Offset = new Vector(0, Math.Clamp(y / h, 0, 1) * max);
+
+        // Snap preview to nearest selected mark at that scroll position (if any).
+        PhotoItem? nearest = null;
+        var best = double.MaxValue;
+        foreach (var child in SelectMarks.Children)
+        {
+            if (child is not Border { Tag: PhotoItem item } mark) continue;
+            var mid = Canvas.GetTop(mark) + mark.Height / 2;
+            var d = Math.Abs(mid - y);
+            if (d < best) { best = d; nearest = item; }
+        }
+        if (nearest is not null && best < 14) JumpToPhoto(nearest);
+        e.Handled = true;
+    }
+
+    void PrevSelected_Click(object? sender, RoutedEventArgs e) => JumpSelected(-1);
+    void NextSelected_Click(object? sender, RoutedEventArgs e) => JumpSelected(+1);
+
+    void JumpSelected(int dir)
+    {
+        var sel = _items.Where(i => i.Selected).ToList();
+        if (sel.Count == 0) return;
+        var idx = _preview is null ? -1 : sel.IndexOf(_preview);
+        PhotoItem next;
+        if (dir > 0)
+            next = idx < 0 || idx >= sel.Count - 1 ? sel[0] : sel[idx + 1];
+        else
+            next = idx <= 0 ? sel[^1] : sel[idx - 1];
+        JumpToPhoto(next);
+    }
+
+    void JumpToPhoto(PhotoItem item)
+    {
+        ShowPreview(item);
+        // Two tries: immediate + after layout (AI select just rewrote Selected flags).
+        FindVisualFor(item)?.BringIntoView();
+        Dispatcher.UIThread.Post(() => FindVisualFor(item)?.BringIntoView(), DispatcherPriority.Loaded);
+    }
+
+    Control? FindVisualFor(PhotoItem item)
+    {
+        if (PhotoGrid is null) return null;
+        return FindByDataContext(PhotoGrid, item);
+    }
+
+    static Control? FindByDataContext(Visual root, object dc)
+    {
+        if (root is Control c && ReferenceEquals(c.DataContext, dc)) return c;
+        foreach (var child in root.GetVisualChildren())
+        {
+            var hit = FindByDataContext(child, dc);
+            if (hit is not null) return hit;
+        }
+        return null;
     }
 
     async void Apply_Click(object? sender, RoutedEventArgs e)
