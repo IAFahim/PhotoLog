@@ -54,11 +54,11 @@
       </StackPanel>
     </Border>
 
-    <!-- Options: 2 lines — (1) Date | Time | Drop shadow  (2) Address -->
+    <!-- Options: Date|Time row, then full-width Drop shadow (X/Y must never clip), then Address -->
     <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,12">
       <StackPanel Spacing="12">
-        <!-- Line 1: Date | Time sized to content; Drop shadow takes remaining width (no clip) -->
-        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*">
+        <!-- Line 1: Date | Time only -->
+        <Grid ColumnDefinitions="Auto,Auto,*">
           <StackPanel Margin="0,0,10,0">
             <TextBlock Classes="label" Text="Date"/>
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -70,7 +70,7 @@
           </StackPanel>
           <Border Grid.Column="1" Width="1" Background="{DynamicResource BrushBorder}" Margin="2,0"/>
 
-          <StackPanel Grid.Column="2" Margin="10,0">
+          <StackPanel Grid.Column="2" Margin="10,0,0,0">
             <TextBlock Classes="label" Text="Time"/>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TimePicker x:Name="TimePart" Width="168" ClockIdentifier="12HourClock" UseSeconds="True"
@@ -79,42 +79,45 @@
               <Button Classes="quiet" Content="Clear" Padding="12,6" Click="ClearTime_Click"/>
             </StackPanel>
           </StackPanel>
-          <Border Grid.Column="3" Width="1" Background="{DynamicResource BrushBorder}" Margin="2,0"/>
-
-          <StackPanel Grid.Column="4" Margin="10,0,0,0"
-                      ToolTip.Tip="Weight + freeform offset (+X right, −Y up). Saved between sessions.">
-            <TextBlock Classes="label" Text="Drop shadow"/>
-            <WrapPanel Orientation="Horizontal" ItemHeight="36">
-              <ComboBox x:Name="DropBox" Width="96" MinHeight="36" Margin="0,0,8,0"
-                        VerticalAlignment="Center"
-                        SelectedIndex="1" SelectionChanged="DropChanged">
-                <ComboBoxItem Content="Off" Tag="Off"/>
-                <ComboBoxItem Content="Light" Tag="Light"/>
-                <ComboBoxItem Content="Heavy" Tag="Heavy"/>
-              </ComboBox>
-              <TextBlock Text="X" Classes="hint" VerticalAlignment="Center" Margin="0,0,4,0"/>
-              <NumericUpDown x:Name="ShadowXBox" Value="1" Minimum="-20" Maximum="20"
-                             Increment="1" FormatString="0"
-                             Width="100" MinWidth="100" MinHeight="36" Height="36"
-                             Margin="0,0,8,0" VerticalAlignment="Center"
-                             HorizontalContentAlignment="Center"
-                             ShowButtonSpinner="True" AllowSpin="True"
-                             ValueChanged="OffsetChanged"/>
-              <TextBlock Text="Y" Classes="hint" VerticalAlignment="Center" Margin="0,0,4,0"/>
-              <NumericUpDown x:Name="ShadowYBox" Value="-1" Minimum="-20" Maximum="20"
-                             Increment="1" FormatString="0"
-                             Width="100" MinWidth="100" MinHeight="36" Height="36"
-                             Margin="0,0,8,0" VerticalAlignment="Center"
-                             HorizontalContentAlignment="Center"
-                             ShowButtonSpinner="True" AllowSpin="True"
-                             ValueChanged="OffsetChanged"/>
-              <Button Classes="quiet" Content="Refresh" Padding="12,8" MinHeight="36"
-                      VerticalAlignment="Center" Click="Refresh_Click"/>
-            </WrapPanel>
-          </StackPanel>
         </Grid>
 
-        <!-- Line 2: multi-line address -->
+        <!-- Line 2: Drop shadow alone — full width so X/Y digits + spinners never squeeze -->
+        <StackPanel ToolTip.Tip="Weight + freeform offset (+X right, −Y up). Saved between sessions.">
+          <TextBlock Classes="label" Text="Drop shadow"/>
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ComboBox x:Name="DropBox" Width="100" MinHeight="40" VerticalAlignment="Center"
+                      SelectedIndex="1" SelectionChanged="DropChanged">
+              <ComboBoxItem Content="Off" Tag="Off"/>
+              <ComboBoxItem Content="Light" Tag="Light"/>
+              <ComboBoxItem Content="Heavy" Tag="Heavy"/>
+            </ComboBox>
+            <TextBlock Text="X" Classes="hint" VerticalAlignment="Center"/>
+            <!-- Room for “-20” + button spinner; no fixed Height (that was clipping the digits). -->
+            <NumericUpDown x:Name="ShadowXBox" Value="1" Minimum="-20" Maximum="20"
+                           Increment="1" FormatString="0"
+                           Width="128" MinWidth="128" MinHeight="40"
+                           VerticalAlignment="Center"
+                           HorizontalContentAlignment="Right"
+                           Padding="10,6"
+                           ShowButtonSpinner="True" AllowSpin="True"
+                           ButtonSpinnerLocation="Right"
+                           ValueChanged="OffsetChanged"/>
+            <TextBlock Text="Y" Classes="hint" VerticalAlignment="Center"/>
+            <NumericUpDown x:Name="ShadowYBox" Value="-1" Minimum="-20" Maximum="20"
+                           Increment="1" FormatString="0"
+                           Width="128" MinWidth="128" MinHeight="40"
+                           VerticalAlignment="Center"
+                           HorizontalContentAlignment="Right"
+                           Padding="10,6"
+                           ShowButtonSpinner="True" AllowSpin="True"
+                           ButtonSpinnerLocation="Right"
+                           ValueChanged="OffsetChanged"/>
+            <Button Classes="quiet" Content="Refresh" Padding="14,8" MinHeight="40"
+                    VerticalAlignment="Center" Click="Refresh_Click"/>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Line 3: multi-line address -->
         <StackPanel Spacing="6">
           <TextBlock Classes="label" Text="Address (optional)"/>
           <TextBox x:Name="AddrBox" AcceptsReturn="True" TextWrapping="Wrap"
