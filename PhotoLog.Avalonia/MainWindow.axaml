@@ -106,11 +106,11 @@
       </Grid>
     </Border>
 
-    <!-- Body: grid | preview+controls -->
-    <Grid ColumnDefinitions="3*,2*" RowDefinitions="*">
+    <!-- Body: library | draggable splitter | preview (not fixed 3:2) -->
+    <Grid ColumnDefinitions="*,6,*" RowDefinitions="*">
 
       <!-- LEFT: library grid -->
-      <Border Classes="card" Margin="0,0,6,0" Padding="10">
+      <Border Classes="card" MinWidth="280" Padding="10">
         <DockPanel>
           <StackPanel x:Name="LibToolbar" DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,4" IsVisible="False">
             <!-- One line: select + AI -->
@@ -246,8 +246,14 @@
         </DockPanel>
       </Border>
 
-      <!-- RIGHT: live preview on top, stamp controls below (no overlap with selected list) -->
-      <Border Grid.Column="1" Classes="card" Margin="6,0,0,0" Padding="10">
+      <!-- Drag to resize library vs preview -->
+      <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch" ResizeDirection="Columns"
+                    Background="{DynamicResource BrushBorder}"
+                    ToolTip.Tip="Drag to resize library / preview"/>
+
+      <!-- RIGHT: live preview on top, stamp controls below -->
+      <Border Grid.Column="2" Classes="card" MinWidth="260" Padding="10">
         <Grid RowDefinitions="*,Auto">
 
           <!-- Live preview only — clean, no selected list stacked on top -->
