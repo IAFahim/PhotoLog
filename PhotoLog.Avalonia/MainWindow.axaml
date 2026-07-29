@@ -319,32 +319,36 @@
             <StackPanel Spacing="2"
                         ToolTip.Tip="+X right, −Y up. Saved between sessions.">
               <TextBlock Classes="label" Text="Drop shadow" Margin="0,0,0,2"/>
-              <WrapPanel Orientation="Horizontal" ItemHeight="34">
-                <ComboBox x:Name="DropBox" Width="90" MinHeight="32" Margin="0,0,8,0"
+              <!-- Full-width grid so combo + X/Y spinboxes actually fill the pane -->
+              <Grid ColumnDefinitions="*,Auto,1.1*,Auto,1.1*,Auto" MinHeight="36">
+                <ComboBox x:Name="DropBox" MinHeight="36" HorizontalAlignment="Stretch"
                           SelectedIndex="1" SelectionChanged="DropChanged">
                   <ComboBoxItem Content="Off" Tag="Off"/>
                   <ComboBoxItem Content="Light" Tag="Light"/>
                   <ComboBoxItem Content="Heavy" Tag="Heavy"/>
                 </ComboBox>
-                <TextBlock Text="X" Classes="hint" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <NumericUpDown x:Name="ShadowXBox" Value="1" Minimum="-20" Maximum="20"
-                               Increment="1" FormatString="0"
-                               Width="96" MinWidth="96" MinHeight="32" Margin="0,0,8,0"
-                               HorizontalContentAlignment="Right" Padding="6,2"
+                <TextBlock Grid.Column="1" Text="X" Classes="hint" VerticalAlignment="Center"
+                           Margin="10,0,6,0"/>
+                <NumericUpDown Grid.Column="2" x:Name="ShadowXBox" Value="1"
+                               Minimum="-20" Maximum="20" Increment="1" FormatString="0"
+                               MinHeight="36" MinWidth="72" HorizontalAlignment="Stretch"
+                               HorizontalContentAlignment="Center" Padding="8,4"
                                ShowButtonSpinner="True" AllowSpin="True"
                                ButtonSpinnerLocation="Right"
                                ValueChanged="OffsetChanged"/>
-                <TextBlock Text="Y" Classes="hint" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <NumericUpDown x:Name="ShadowYBox" Value="-1" Minimum="-20" Maximum="20"
-                               Increment="1" FormatString="0"
-                               Width="96" MinWidth="96" MinHeight="32" Margin="0,0,8,0"
-                               HorizontalContentAlignment="Right" Padding="6,2"
+                <TextBlock Grid.Column="3" Text="Y" Classes="hint" VerticalAlignment="Center"
+                           Margin="10,0,6,0"/>
+                <NumericUpDown Grid.Column="4" x:Name="ShadowYBox" Value="-1"
+                               Minimum="-20" Maximum="20" Increment="1" FormatString="0"
+                               MinHeight="36" MinWidth="72" HorizontalAlignment="Stretch"
+                               HorizontalContentAlignment="Center" Padding="8,4"
                                ShowButtonSpinner="True" AllowSpin="True"
                                ButtonSpinnerLocation="Right"
                                ValueChanged="OffsetChanged"/>
-                <Button Classes="quiet" Content="↻" Padding="10,4" Click="Refresh_Click"
-                        ToolTip.Tip="Refresh thumbs"/>
-              </WrapPanel>
+                <Button Grid.Column="5" Classes="quiet" Content="↻" Padding="12,6"
+                        Margin="8,0,0,0" MinHeight="36" VerticalAlignment="Stretch"
+                        Click="Refresh_Click" ToolTip.Tip="Refresh thumbs"/>
+              </Grid>
             </StackPanel>
 
             <Grid ColumnDefinitions="*,Auto">
