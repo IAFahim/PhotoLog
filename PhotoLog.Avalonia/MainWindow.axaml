@@ -63,22 +63,21 @@
                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                Text=""/>
 
-    <!-- Selected filmstrip — quiet thumbs, no loud purple frames on every cell -->
+    <!-- Selected filmstrip: ‹ left | thumbs | › right (not both arrows crammed on one side) -->
     <Border DockPanel.Dock="Bottom" x:Name="SelectedListHost" IsVisible="False"
             Margin="0,6,0,0" Padding="0,4" Background="Transparent">
-      <DockPanel LastChildFill="True">
-        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4"
-                    VerticalAlignment="Center" Margin="2,0,10,0">
-          <TextBlock x:Name="SelectedListHeader" Classes="hint" VerticalAlignment="Center"
-                     FontWeight="SemiBold" Text="Selected"/>
-          <Button x:Name="PrevSelBtn2" Classes="quiet" Content="‹" Padding="6,2" FontSize="16"
-                  IsEnabled="False" Click="PrevSelected_Click" MinHeight="28"/>
-          <Button x:Name="NextSelBtn2" Classes="quiet" Content="›" Padding="6,2" FontSize="16"
-                  IsEnabled="False" Click="NextSelected_Click" MinHeight="28"/>
-        </StackPanel>
-        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                      AllowAutoHide="True">
-          <ItemsControl x:Name="SelectedList">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+        <TextBlock x:Name="SelectedListHeader" Classes="hint" VerticalAlignment="Center"
+                   FontWeight="SemiBold" Margin="2,0,8,0" Text="Selected"/>
+        <Button Grid.Column="1" x:Name="PrevSelBtn2" Classes="quiet" Content="‹"
+                Padding="10,4" FontSize="20" MinWidth="36" MinHeight="48"
+                VerticalAlignment="Center" Margin="0,0,6,0"
+                IsEnabled="False" Click="PrevSelected_Click"
+                ToolTip.Tip="Previous selected"/>
+        <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Disabled" AllowAutoHide="True"
+                      VerticalAlignment="Center">
+          <ItemsControl x:Name="SelectedList" HorizontalAlignment="Left">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <StackPanel Orientation="Horizontal" Spacing="4"/>
@@ -86,7 +85,6 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="local:PhotoItem">
-                <!-- Soft filmstrip cell: image only + thin bottom accent, no badge frames -->
                 <Border Cursor="Hand" Width="56" Height="56" CornerRadius="6"
                         ClipToBounds="True" BorderThickness="1"
                         BorderBrush="{DynamicResource BrushBorder}"
@@ -104,7 +102,12 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </ScrollViewer>
-      </DockPanel>
+        <Button Grid.Column="3" x:Name="NextSelBtn2" Classes="quiet" Content="›"
+                Padding="10,4" FontSize="20" MinWidth="36" MinHeight="48"
+                VerticalAlignment="Center" Margin="6,0,2,0"
+                IsEnabled="False" Click="NextSelected_Click"
+                ToolTip.Tip="Next selected"/>
+      </Grid>
     </Border>
 
     <!-- Body: grid | preview+controls -->
