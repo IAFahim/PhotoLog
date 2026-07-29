@@ -10,10 +10,12 @@ namespace PhotoLog.Avalonia;
 /// One cell in the thumbnail grid. Thumb/Caption arrive later (async render), Selected toggles on click.
 public class PhotoItem : INotifyPropertyChanged
 {
-    /// Fixed row height for the Google Photos-style strip; width follows aspect.
-    public const double CellH = 152;
+    /// Fit every photo fully inside this box (scale down, never crop). Aspect is always preserved.
+    public const double MaxCellH = 160;
+    public const double MaxCellW = 280;
+    public const double MinCell = 48;
     /// Inset when selected so the photo shrinks and the plate behind reads larger.
-    const double SelectInset = 12;
+    const double SelectInset = 10;
 
     public required string Name { get; init; }
     public required string Path { get; init; }
@@ -25,7 +27,8 @@ public class PhotoItem : INotifyPropertyChanged
     string _caption = "";
     bool _selected;
     bool _inSelectionMode; // any photo in the library is selected → show empty circles
-    double _cellW = CellH; // square until the first thumb paints
+    double _cellW = MaxCellH; // square placeholder until thumb paints
+    double _cellH = MaxCellH;
 
     public Bitmap? Thumb
     {
@@ -33,10 +36,12 @@ public class PhotoItem : INotifyPropertyChanged
         set
         {
             if (!Set(ref _thumb, value) || value is null) return;
-            // cell width from bitmap aspect (height fixed). Ceiling avoids sub-pixel
-            // narrowing that made UniformToFill crop a column of pixels on each side.
-            var aspect = value.PixelSize.Width / Math.Max(1.0, value.PixelSize.Height);
-            CellW = Math.Ceiling(CellH * aspect);
+            // Scale to fit MaxCellW × MaxCellH; entire image visible (letterbox by shrinking the cell).
+            var iw = Math.Max(1.0, value.PixelSize.Width);
+            var ih = Math.Max(1.0, value.PixelSize.Height);
+            var scale = Math.Min(MaxCellW / iw, MaxCellH / ih);
+            CellW = Math.Max(MinCell, iw * scale);
+            CellH = Math.Max(MinCell, ih * scale);
         }
     }
 
@@ -76,8 +81,9 @@ public class PhotoItem : INotifyPropertyChanged
     /// Shrink inset when selected — full bleed when not (the plate behind fills the leftover).
     public Thickness ThumbMargin => _selected ? new Thickness(SelectInset) : default;
 
-    /// Cell width in DIPs (height is always <see cref="CellH"/>).
+    /// Cell size in DIPs — always the full image aspect (scaled to fit max box).
     public double CellW { get => _cellW; private set => Set(ref _cellW, value); }
+    public double CellH { get => _cellH; private set => Set(ref _cellH, value); }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

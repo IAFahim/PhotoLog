@@ -8,6 +8,7 @@
         Width="1200" Height="860"
         MinWidth="960" MinHeight="640"
         Title="PhotoLog"
+        Icon="/Assets/icon.png"
         Background="{DynamicResource BrushWindow}">
 
   <DockPanel Margin="22">
@@ -15,9 +16,10 @@
     <!-- Header -->
     <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,14">
       <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-        <Border Width="40" Height="40" CornerRadius="12" Background="{DynamicResource BrushAccentSoft}"
-                BorderBrush="{DynamicResource BrushAccent}" BorderThickness="1" VerticalAlignment="Center">
-          <TextBlock Text="📷" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Border Width="40" Height="40" CornerRadius="12" ClipToBounds="True"
+                Background="#0A0A0A" VerticalAlignment="Center">
+          <Image Source="/Assets/icon.png" Stretch="UniformToFill"
+                 Width="40" Height="40"/>
         </Border>
         <StackPanel Spacing="2" VerticalAlignment="Center">
           <TextBlock Text="PhotoLog" FontSize="22" FontWeight="SemiBold"/>
@@ -250,9 +252,8 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="local:PhotoItem">
-                            <!-- Select chips live on the outer cell (not inside the shrink margin)
-                                 so every photo always has a visible select control. -->
-                            <Border Height="152" Width="{Binding CellW}" Margin="3"
+                            <!-- Cell size = full image aspect scaled into max box (never crop). -->
+                            <Border Height="{Binding CellH}" Width="{Binding CellW}" Margin="3"
                                     Background="Transparent" Cursor="Hand"
                                     ToolTip.Tip="{Binding Tip}"
                                     PointerPressed="Cell_Click">
@@ -261,28 +262,30 @@
                                         Background="{DynamicResource BrushSelectPlate}"
                                         BoxShadow="0 2 12 0 #20000000"
                                         IsVisible="{Binding Selected}"/>
+                                <!-- frame matches image aspect → Uniform shows everything; tick on photo -->
                                 <Border Margin="{Binding ThumbMargin}" CornerRadius="8"
                                         ClipToBounds="True" Background="{DynamicResource BrushThumbBg}">
-                                  <Image Source="{Binding Thumb}" Stretch="Uniform"
-                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <!-- empty select (selection mode) -->
-                                <Border Width="26" Height="26" Margin="8" ZIndex="4"
-                                        HorizontalAlignment="Left" VerticalAlignment="Top"
-                                        CornerRadius="13" BorderThickness="2"
-                                        BorderBrush="#FFFFFF" Background="#99000000"
-                                        IsVisible="{Binding ShowEmptyCheck}"/>
-                                <!-- selected check — outer cell so it never clips -->
-                                <Border Width="26" Height="26" Margin="8" ZIndex="4"
-                                        HorizontalAlignment="Left" VerticalAlignment="Top"
-                                        CornerRadius="13" BorderThickness="2"
-                                        BorderBrush="{DynamicResource BrushSelect}" Background="{DynamicResource BrushSelect}"
-                                        IsVisible="{Binding Selected}">
-                                  <Path Width="12" Height="12"
-                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                        Stretch="Uniform" Stroke="White" StrokeThickness="2.2"
-                                        StrokeLineCap="Round" StrokeJoin="Round"
-                                        Data="M 1,6 L 4.5,9.5 L 11,2"/>
+                                  <Panel>
+                                    <Image Source="{Binding Thumb}" Stretch="Uniform"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Border Width="24" Height="24" Margin="6" ZIndex="4"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            CornerRadius="12" BorderThickness="2"
+                                            BorderBrush="#FFFFFF" Background="#99000000"
+                                            IsVisible="{Binding ShowEmptyCheck}"/>
+                                    <Border Width="24" Height="24" Margin="6" ZIndex="4"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            CornerRadius="12" BorderThickness="2"
+                                            BorderBrush="{DynamicResource BrushSelect}"
+                                            Background="{DynamicResource BrushSelect}"
+                                            IsVisible="{Binding Selected}">
+                                      <Path Width="11" Height="11"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Stretch="Uniform" Stroke="White" StrokeThickness="2.2"
+                                            StrokeLineCap="Round" StrokeJoin="Round"
+                                            Data="M 1,6 L 4.5,9.5 L 11,2"/>
+                                    </Border>
+                                  </Panel>
                                 </Border>
                               </Panel>
                             </Border>
