@@ -117,14 +117,14 @@
           </StackPanel>
         </StackPanel>
 
-        <!-- Line 3: multi-line address -->
-        <StackPanel Spacing="6">
-          <TextBlock Classes="label" Text="Address (optional)"/>
-          <TextBox x:Name="AddrBox" AcceptsReturn="True" TextWrapping="Wrap"
-                   MinHeight="64" MaxHeight="120"
+        <!-- Line 3: address — single compact line (list of selected lives in Preview). -->
+        <Grid ColumnDefinitions="Auto,*">
+          <TextBlock Classes="label" Text="Address" VerticalAlignment="Center" Margin="0,0,10,0"/>
+          <TextBox Grid.Column="1" x:Name="AddrBox" AcceptsReturn="False"
+                   MinHeight="36" VerticalAlignment="Center"
                    LostFocus="Addr_LostFocus"
-                   PlaceholderText="Optional address lines (applied to selected photos only)"/>
-        </StackPanel>
+                   PlaceholderText="Optional (selected photos only)"/>
+        </Grid>
       </StackPanel>
     </Border>
 
@@ -330,43 +330,90 @@
         </DockPanel>
       </Border>
 
-      <!-- Preview -->
+      <!-- Preview + selected list (easier than hunting 15 in 440) -->
       <Border Grid.Column="1" Classes="card" Margin="10,0,0,0">
-        <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Classes="section" Text="Preview" Margin="0,0,0,10"/>
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto">
+          <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+            <TextBlock Classes="section" Text="Preview" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+              <Button x:Name="PrevSelBtn2" Classes="quiet" Content="◀" Padding="10,4"
+                      IsEnabled="False" Click="PrevSelected_Click"
+                      ToolTip.Tip="Previous selected"/>
+              <Button x:Name="NextSelBtn2" Classes="quiet" Content="▶" Padding="10,4"
+                      IsEnabled="False" Click="NextSelected_Click"
+                      ToolTip.Tip="Next selected"/>
+            </StackPanel>
+          </Grid>
 
-          <Grid Grid.Row="1" MinHeight="180">
+          <!-- List of every selected photo — click to preview/jump -->
+          <Border Grid.Row="1" x:Name="SelectedListHost" IsVisible="False" Margin="0,0,0,10"
+                  MaxHeight="200" CornerRadius="10" Padding="8,8,4,8"
+                  Background="{DynamicResource BrushField}"
+                  BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1">
+            <DockPanel>
+              <TextBlock x:Name="SelectedListHeader" DockPanel.Dock="Top" Classes="label"
+                         Margin="2,0,0,6" Text="Selected"/>
+              <ScrollViewer MaxHeight="160" HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="SelectedList">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:PhotoItem">
+                      <Border Cursor="Hand" Padding="6,5" Margin="0,1" CornerRadius="8"
+                              Background="Transparent"
+                              PointerPressed="SelectedListItem_Click"
+                              ToolTip.Tip="{Binding Tip}">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <Border Width="44" Height="44" CornerRadius="6" ClipToBounds="True"
+                                  Background="{DynamicResource BrushThumbBg}">
+                            <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
+                          </Border>
+                          <TextBlock Grid.Column="1" Text="{Binding Name}" Margin="10,0,8,0"
+                                     VerticalAlignment="Center" FontSize="13"
+                                     TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                          <TextBlock Grid.Column="2" Text="✓" VerticalAlignment="Center"
+                                     Foreground="{DynamicResource BrushSelect}" FontWeight="SemiBold"
+                                     Margin="0,0,4,0"/>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </DockPanel>
+          </Border>
+
+          <Grid Grid.Row="2" MinHeight="140">
             <Border x:Name="PreviewEmpty" Classes="dashEmpty" IsVisible="True">
               <StackPanel Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center"
                           MaxWidth="260">
-                <Border Width="72" Height="72" CornerRadius="16"
+                <Border Width="64" Height="64" CornerRadius="16"
                         Background="{DynamicResource BrushAccentSoft}"
                         HorizontalAlignment="Center">
-                  <TextBlock Text="🖼" FontSize="32" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <TextBlock Text="🖼" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <TextBlock Text="Your preview will appear here" FontSize="15" FontWeight="SemiBold"
                            HorizontalAlignment="Center" TextAlignment="Center"/>
                 <TextBlock Classes="hint" TextWrapping="Wrap" TextAlignment="Center"
                            HorizontalAlignment="Center"
-                           Text="Select a photo from the left to preview the stamped date and time."/>
+                           Text="Pick a photo left, or click one in the selected list above."/>
               </StackPanel>
             </Border>
             <Image x:Name="PreviewImage" Stretch="Uniform"/>
           </Grid>
 
-          <TextBlock Grid.Row="2" x:Name="PreviewName" Classes="hint" Margin="0,10,0,0"
+          <TextBlock Grid.Row="3" x:Name="PreviewName" Classes="hint" Margin="0,10,0,0"
                      TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
                      MaxLines="2" IsVisible="False" Text=""/>
 
-          <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+          <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
             <TextBox x:Name="CaptionBox"
-                     PlaceholderText="Caption — used as export file name (not drawn on the photo)"
+                     PlaceholderText="Caption — export file name (not drawn on photo)"
                      LostFocus="Caption_LostFocus" IsEnabled="False"/>
             <Button Grid.Column="1" x:Name="CaptionBtn" Classes="quiet" Content="Caption"
                     Margin="8,0,0,0" IsEnabled="False" Click="Caption_Click"/>
           </Grid>
 
-          <Grid Grid.Row="4" ColumnDefinitions="*,*" Margin="0,12,0,0">
+          <Grid Grid.Row="5" ColumnDefinitions="*,*" Margin="0,12,0,0">
             <Button x:Name="SaveOneBtn" Classes="quiet" Content="Save this photo"
                     IsEnabled="False" Click="SaveOne_Click" Margin="0,0,4,0"
                     HorizontalAlignment="Stretch"/>
@@ -375,12 +422,12 @@
                     HorizontalAlignment="Stretch"/>
           </Grid>
 
-          <Button Grid.Row="5" x:Name="DownloadModelBtn" Classes="quiet" Margin="0,8,0,0"
+          <Button Grid.Row="6" x:Name="DownloadModelBtn" Classes="quiet" Margin="0,8,0,0"
                   Content="Download caption model" HorizontalAlignment="Stretch"
                   Click="DownloadModel_Click"
                   ToolTip.Tip="Gemma 4 E2B (~3.4 GB) for Caption only. AI select uses YOLO26n (~10 MB) and auto-downloads."/>
 
-          <StackPanel Grid.Row="6" Margin="0,10,0,0" Spacing="6">
+          <StackPanel Grid.Row="7" Margin="0,10,0,0" Spacing="6">
             <ProgressBar x:Name="AiProgress" Minimum="0" Maximum="100" IsVisible="False"/>
             <TextBlock x:Name="AiStatus" Classes="hint" TextAlignment="Center" TextWrapping="Wrap"/>
           </StackPanel>

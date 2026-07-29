@@ -21,6 +21,7 @@ public partial class MainWindow : Window
 {
     readonly ObservableCollection<PhotoItem> _items = [];
     readonly ObservableCollection<DayGroup> _days = [];
+    readonly ObservableCollection<PhotoItem> _selectedList = []; // right-panel list of selected
     PhotoItem? _preview;
     CancellationTokenSource? _cts;
     (DateOnly? Date, TimeOnly? Time, string Addr, DropShadow Drop, int Dx, int Dy) _rendered;
@@ -34,6 +35,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         PhotoGrid.ItemsSource = _days;
+        if (SelectedList is not null) SelectedList.ItemsSource = _selectedList;
         DownloadModelBtn.Content = $"Download caption model ({Caption.TotalBytes / 1e9:0.0} GB)";
         DownloadModelBtn.IsVisible = !Caption.Ready;
         // COCO groups from YoloPick — every class is reachable; no fake screenshot/doc options
@@ -644,9 +646,32 @@ public partial class MainWindow : Window
         }
         if (PrevSelBtn is not null) PrevSelBtn.IsEnabled = sel > 0;
         if (NextSelBtn is not null) NextSelBtn.IsEnabled = sel > 0;
+        if (PrevSelBtn2 is not null) PrevSelBtn2.IsEnabled = sel > 0;
+        if (NextSelBtn2 is not null) NextSelBtn2.IsEnabled = sel > 0;
         if (SelectOverview is not null) SelectOverview.IsVisible = mode && LibScrollHost.IsVisible;
+        RebuildSelectedList();
         SyncCaptionButtons();
         ScheduleSelectionMap();
+    }
+
+    /// Keep the preview-side selected list in sync (same order as library).
+    void RebuildSelectedList()
+    {
+        if (SelectedListHost is null) return;
+        _selectedList.Clear();
+        foreach (var i in _items)
+            if (i.Selected) _selectedList.Add(i);
+        var n = _selectedList.Count;
+        SelectedListHost.IsVisible = n > 0;
+        if (SelectedListHeader is not null)
+            SelectedListHeader.Text = n == 0 ? "Selected" : $"Selected ({n}) — click to preview";
+    }
+
+    void SelectedListItem_Click(object? sender, PointerPressedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is not PhotoItem item) return;
+        e.Handled = true;
+        JumpToPhoto(item);
     }
 
     // --- Selection map (editor-style overview ruler) + prev/next jump ---
