@@ -17,6 +17,108 @@
        [ selected horizontal strip ]
        [ bottom: output + apply ]
   -->
+
+  <Window.Styles>
+    <!-- Grid cells fade in; .sel drives the selection chrome below -->
+    <Style Selector="Border.cell">
+      <Style.Animations>
+        <Animation Duration="0:0:0.25" FillMode="Backward" Easing="CubicEaseOut">
+          <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0"/></KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+
+    <!-- Thumb: hover lift + shadow, animated select inset -->
+    <Style Selector="Border.thumbHost">
+      <Setter Property="RenderTransform" Value="scale(1)"/>
+      <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+          <ThicknessTransition Property="Margin" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+          <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border.cell:pointerover Border.thumbHost">
+      <Setter Property="RenderTransform" Value="scale(1.02)"/>
+      <Setter Property="BoxShadow" Value="0 3 12 0 #50000000"/>
+    </Style>
+
+    <!-- Selection plate + edge bar fade; check chip pops with overshoot -->
+    <Style Selector="Border.plate, Border.bar">
+      <Setter Property="Opacity" Value="0"/>
+      <Setter Property="Transitions">
+        <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.16"/></Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border.cell.sel Border.plate, Border.cell.sel Border.bar">
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="Border.chip">
+      <Setter Property="Opacity" Value="0"/>
+      <Setter Property="RenderTransform" Value="scale(0.5)"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.14"/>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.22" Easing="BackEaseOut"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border.cell.sel Border.chip">
+      <Setter Property="Opacity" Value="1"/>
+      <Setter Property="RenderTransform" Value="scale(1)"/>
+    </Style>
+
+    <!-- Thumbs fade in as they decode -->
+    <Style Selector="Image.thumb">
+      <Setter Property="Opacity" Value="0"/>
+      <Setter Property="Transitions">
+        <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.3"/></Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Image.thumb.loaded"><Setter Property="Opacity" Value="1"/></Style>
+
+    <!-- Day sections fade in (keyframes can't animate RenderTransform — transitions only) -->
+    <Style Selector="StackPanel.dayGroup">
+      <Style.Animations>
+        <Animation Duration="0:0:0.3" FillMode="Backward" Easing="CubicEaseOut">
+          <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0"/></KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+
+    <!-- Filmstrip: hover scale, active ring fade -->
+    <Style Selector="Border.filmItem">
+      <Setter Property="RenderTransform" Value="scale(1)"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" Easing="CubicEaseOut"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border.filmItem:pointerover"><Setter Property="RenderTransform" Value="scale(1.08)"/></Style>
+    <Style Selector="Border.filmItem Border.ring">
+      <Setter Property="Opacity" Value="0"/>
+      <Setter Property="Transitions">
+        <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.15"/></Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border.filmItem.active Border.ring"><Setter Property="Opacity" Value="1"/></Style>
+
+    <!-- Preview fade-in; class retoggled in code when the source changes -->
+    <Style Selector="Image.fadein">
+      <Style.Animations>
+        <Animation Duration="0:0:0.22" FillMode="Backward" Easing="CubicEaseOut">
+          <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0"/></KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+  </Window.Styles>
+
   <DockPanel Margin="10">
 
     <!-- Top: folder only — same card padding as library so path lines up with thumbs -->
@@ -37,7 +139,7 @@
                 Margin="0,0,6,0" Click="Theme_Click" ToolTip.Tip="Toggle light/dark theme"/>
         <Button Grid.Column="4" Classes="quiet" Content="Browse…" Padding="10,5"
                 Margin="0,0,6,0" Click="Browse_Click"/>
-        <Button Grid.Column="5" Classes="accent" Content="Load" Padding="14,5"
+        <Button Grid.Column="5" Classes="primary" Content="Load" Padding="14,5"
                 Click="Browse_Click"/>
       </Grid>
     </Border>
@@ -52,7 +154,7 @@
                  LostFocus="OutBox_LostFocus"/>
         <Button Grid.Column="2" Classes="quiet" Content="Browse…" Padding="10,5"
                 Margin="8,0,0,0" VerticalAlignment="Center" Click="OutBrowse_Click"/>
-        <Button Grid.Column="3" x:Name="ApplyBtn" Classes="accent" Margin="8,0,0,0"
+        <Button Grid.Column="3" x:Name="ApplyBtn" Classes="primary" Margin="8,0,0,0"
                 Padding="14,5" VerticalAlignment="Center"
                 Content="✓ Apply" Click="Apply_Click"
                 ToolTip.Tip="Write stamped copies of selected photos"/>
@@ -89,7 +191,8 @@
                   </ItemsControl.ItemsPanel>
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="local:PhotoItem">
-                      <Border Cursor="Hand" Width="36" Height="36" CornerRadius="5"
+                      <Border Classes="filmItem" Classes.active="{Binding IsActivePreview}"
+                              Cursor="Hand" Width="36" Height="36" CornerRadius="5"
                               ClipToBounds="True" BorderThickness="1"
                               BorderBrush="{DynamicResource BrushBorder}"
                               Background="{DynamicResource BrushThumbBg}"
@@ -97,9 +200,8 @@
                               ToolTip.Tip="{Binding Name}">
                         <Panel>
                           <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
-                          <Border BorderBrush="{DynamicResource BrushSelect}" BorderThickness="2.5"
-                                  CornerRadius="5" IsHitTestVisible="False"
-                                  IsVisible="{Binding IsActivePreview}"/>
+                          <Border Classes="ring" BorderBrush="{DynamicResource BrushSelect}" BorderThickness="2.5"
+                                  CornerRadius="5" IsHitTestVisible="False"/>
                         </Panel>
                       </Border>
                     </DataTemplate>
@@ -146,7 +248,7 @@
                            HorizontalAlignment="Center"/>
                 <TextBlock Classes="hint" TextWrapping="Wrap" TextAlignment="Center"
                            Text="Browse a folder of photos to start."/>
-                <Button Classes="accent" Content="Browse folder…" Padding="18,8"
+                <Button Classes="primary" Content="Browse folder…" Padding="18,8"
                         HorizontalAlignment="Center" Click="Browse_Click"/>
               </StackPanel>
             </Border>
@@ -160,7 +262,7 @@
                 <ItemsControl x:Name="PhotoGrid">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="local:DayGroup">
-                      <StackPanel Margin="0,0,0,8">
+                      <StackPanel Classes="dayGroup" Margin="0,0,0,8">
                         <Border Cursor="Hand" Background="Transparent"
                                 ToolTip.Tip="Select or deselect this day"
                                 PointerPressed="DayHeader_Click">
@@ -169,13 +271,13 @@
                                     BorderBrush="{DynamicResource BrushSelect}" Background="{DynamicResource BrushSelect}"
                                     IsVisible="{Binding ShowPartialDayCheck}">
                               <Path Width="8" Height="2" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    Stretch="Fill" Stroke="White" StrokeThickness="2" Data="M 0,1 L 10,1"/>
+                                    Stretch="Fill" Stroke="{DynamicResource BrushOnAccent}" StrokeThickness="2" Data="M 0,1 L 10,1"/>
                             </Border>
                             <Border Width="18" Height="18" CornerRadius="9" BorderThickness="2"
                                     BorderBrush="{DynamicResource BrushSelect}" Background="{DynamicResource BrushSelect}"
                                     IsVisible="{Binding ShowAllDayCheck}">
                               <Path Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    Stretch="Uniform" Stroke="White" StrokeThickness="2"
+                                    Stretch="Uniform" Stroke="{DynamicResource BrushOnAccent}" StrokeThickness="2"
                                     Data="M 1,6 L 4.5,9.5 L 11,2"/>
                             </Border>
                             <TextBlock Text="{Binding Header}" FontSize="14" FontWeight="SemiBold"
@@ -185,37 +287,41 @@
                         <ItemsControl ItemsSource="{Binding Photos}">
                           <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                              <WrapPanel Orientation="Horizontal"/>
+                              <local:JustifiedPanel RowHeight="160" Spacing="4"/>
                             </ItemsPanelTemplate>
                           </ItemsControl.ItemsPanel>
                           <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="local:PhotoItem">
-                              <Border Height="{Binding CellH}" Width="{Binding CellW}" Margin="2"
+                              <Border Classes="cell" Classes.sel="{Binding Selected}"
+                                      local:JustifiedPanel.Aspect="{Binding Aspect}"
                                       Background="Transparent" Cursor="Hand"
                                       ToolTip.Tip="{Binding Tip}"
                                       PointerPressed="Cell_Click">
                                 <Panel>
-                                  <Border CornerRadius="8" Margin="1"
-                                          Background="{DynamicResource BrushSelectPlate}"
-                                          IsVisible="{Binding Selected}"/>
-                                  <Border Width="3" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                                  <Border Classes="plate" CornerRadius="8" Margin="1"
+                                          Background="{DynamicResource BrushSelectPlate}"/>
+                                  <Border Classes="bar" Width="3" HorizontalAlignment="Left" VerticalAlignment="Stretch"
                                           Margin="0,3" CornerRadius="2"
-                                          Background="{DynamicResource BrushSelect}"
-                                          IsVisible="{Binding Selected}" ZIndex="5"/>
-                                  <Border Margin="{Binding ThumbMargin}" CornerRadius="6"
+                                          Background="{DynamicResource BrushSelect}" ZIndex="5"/>
+                                  <Border Classes="thumbHost" Margin="{Binding ThumbMargin}" CornerRadius="6"
                                           ClipToBounds="True" Background="{DynamicResource BrushThumbBg}">
                                     <Panel>
-                                      <Image Source="{Binding Thumb}" Stretch="Uniform"
+                                      <Image Classes="thumb"
+                                             Classes.loaded="{Binding Thumb, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                             Source="{Binding Thumb}" Stretch="Uniform"
                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                      <Border Width="20" Height="20" Margin="4" ZIndex="4"
+                                      <!-- Hairline inset ring so white/black photos read against any card -->
+                                      <Border CornerRadius="6" BorderThickness="1" ZIndex="3"
+                                              BorderBrush="{DynamicResource BrushThumbRing}"
+                                              IsHitTestVisible="False"/>
+                                      <Border Classes="chip" Width="20" Height="20" Margin="4" ZIndex="4"
                                               HorizontalAlignment="Left" VerticalAlignment="Top"
                                               CornerRadius="10" BorderThickness="2"
                                               BorderBrush="{DynamicResource BrushSelect}"
-                                              Background="{DynamicResource BrushSelect}"
-                                              IsVisible="{Binding Selected}">
+                                              Background="{DynamicResource BrushSelect}">
                                         <Path Width="9" Height="9"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Stretch="Uniform" Stroke="White" StrokeThickness="2"
+                                              Stretch="Uniform" Stroke="{DynamicResource BrushOnAccent}" StrokeThickness="2"
                                               Data="M 1,6 L 4.5,9.5 L 11,2"/>
                                       </Border>
                                     </Panel>

@@ -60,6 +60,18 @@ public partial class MainWindow : Window
             YoloPick.SaveCache();
             Persist();
         };
+
+        if (Program.UishotOut is { } shotPath)
+            Opened += async (_, _) =>
+            {
+                await Task.Delay(2500); // scan + thumb decode + entrance animations settle
+                Shot(shotPath);
+                await SetAll(true);
+                if (_items.Count > 0) ShowPreview(_items[0]);
+                await Task.Delay(700); // selection chrome transitions settle
+                Shot(System.IO.Path.ChangeExtension(shotPath, null) + "-sel.png");
+                Close();
+            };
     }
 
     void ApplySettings(Settings.Data s)
@@ -388,10 +400,26 @@ public partial class MainWindow : Window
         else if (_preview is not null) ShowPreview(_preview);
     }
 
+    /// Render the whole window into a PNG (used by --uishot).
+    void Shot(string path)
+    {
+        var rtb = new RenderTargetBitmap(new PixelSize(
+            Math.Max(1, (int)Bounds.Width), Math.Max(1, (int)Bounds.Height)));
+        rtb.Render(this);
+        using var fs = File.Create(path);
+        rtb.Save(fs, new PngBitmapEncoderOptions());
+    }
+
     void ShowPreview(PhotoItem item)
     {
         SetActivePreview(item);
         _preview = item;
+        if (!ReferenceEquals(PreviewImage.Source, item.Thumb))
+        {
+            // Retoggle the class so the fade-in style animation replays for the new photo.
+            PreviewImage.Classes.Remove("fadein");
+            PreviewImage.Classes.Add("fadein");
+        }
         PreviewImage.Source = item.Thumb;
         var empty = item.Thumb is null;
         PreviewEmpty.IsVisible = empty;
@@ -729,7 +757,8 @@ public partial class MainWindow : Window
         var useLayout = extent >= 1;
         var n = Math.Max(1, _items.Count);
 
-        var brush = new SolidColorBrush(Color.Parse("#A78BFA")); // bright violet — readable on dark track
+        var brush = this.TryFindResource("BrushSelect", ActualThemeVariant, out var res) && res is IBrush b
+            ? b : new SolidColorBrush(Color.Parse("#8AB4F8"));
 
         foreach (var item in selected)
         {

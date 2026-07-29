@@ -6,6 +6,9 @@ namespace PhotoLog.Avalonia;
 
 class Program
 {
+    /// --uishot <out.png>: after load, save browse + selected screenshots and exit (UI smoke test).
+    public static string? UishotOut;
+
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
     // yet and stuff might break.
@@ -24,6 +27,14 @@ class Program
                 "1521 Meander Rd\nTimmonsville SC 29161\nUnited States", 1280, drop,
                 shadowX: dx, shadowY: dy).Jpeg);
             return 0;
+        }
+        var shot = Array.IndexOf(args, "--uishot");
+        if (shot >= 0 && args.Length > shot + 1)
+        {
+            UishotOut = args[shot + 1];
+            Settings.PathOverride = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "photolog-uishot-settings.json");
+            args = args.Where((_, i) => i != shot && i != shot + 1).ToArray();
         }
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return 0;

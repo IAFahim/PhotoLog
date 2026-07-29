@@ -7,66 +7,72 @@
   <Application.Resources>
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
-        <!-- Default/Light: soft purple product UI -->
+        <!-- Default/Light: neutral surfaces + Google-blue accent -->
         <ResourceDictionary x:Key="Default">
-          <SolidColorBrush x:Key="BrushWindow" Color="#F4F5FB"/>
+          <SolidColorBrush x:Key="BrushWindow" Color="#F6F7F9"/>
           <SolidColorBrush x:Key="BrushCard" Color="#FFFFFF"/>
-          <SolidColorBrush x:Key="BrushField" Color="#F8F9FC"/>
+          <SolidColorBrush x:Key="BrushField" Color="#F1F3F6"/>
           <SolidColorBrush x:Key="BrushElevated" Color="#FFFFFF"/>
-          <SolidColorBrush x:Key="BrushBorder" Color="#E4E7F0"/>
-          <SolidColorBrush x:Key="BrushBorderMuted" Color="#C7CBD9"/>
-          <SolidColorBrush x:Key="BrushText" Color="#1E1B2E"/>
-          <SolidColorBrush x:Key="BrushMuted" Color="#6B6F8A"/>
-          <SolidColorBrush x:Key="BrushDim" Color="#9A9DB5"/>
-          <SolidColorBrush x:Key="BrushAccent" Color="#7C3AED"/>
-          <SolidColorBrush x:Key="BrushAccentHover" Color="#8B5CF6"/>
-          <SolidColorBrush x:Key="BrushAccentSoft" Color="#EDE9FE"/>
-          <SolidColorBrush x:Key="BrushSelect" Color="#7C3AED"/>
-          <SolidColorBrush x:Key="BrushSelectPlate" Color="#EDE9FE"/>
-          <SolidColorBrush x:Key="BrushThumbBg" Color="#F1F5F9"/>
-          <SolidColorBrush x:Key="BrushDash" Color="#B8A4F0"/>
-          <SolidColorBrush x:Key="BrushDashFill" Color="#0A7C3AED"/>
+          <SolidColorBrush x:Key="BrushBorder" Color="#E2E5EA"/>
+          <SolidColorBrush x:Key="BrushBorderMuted" Color="#C6CBD2"/>
+          <SolidColorBrush x:Key="BrushText" Color="#1F2328"/>
+          <SolidColorBrush x:Key="BrushMuted" Color="#5C6470"/>
+          <SolidColorBrush x:Key="BrushDim" Color="#98A0AA"/>
+          <SolidColorBrush x:Key="BrushAccent" Color="#1A73E8"/>
+          <SolidColorBrush x:Key="BrushAccentHover" Color="#1765CC"/>
+          <SolidColorBrush x:Key="BrushAccentSoft" Color="#E8F0FE"/>
+          <SolidColorBrush x:Key="BrushOnAccent" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="BrushSelect" Color="#1A73E8"/>
+          <SolidColorBrush x:Key="BrushSelectPlate" Color="#E8F0FE"/>
+          <SolidColorBrush x:Key="BrushThumbBg" Color="#EAEDF1"/>
+          <SolidColorBrush x:Key="BrushThumbRing" Color="#16000000"/>
+          <SolidColorBrush x:Key="BrushDash" Color="#A8C7FA"/>
+          <SolidColorBrush x:Key="BrushDashFill" Color="#0A1A73E8"/>
           <SolidColorBrush x:Key="BrushCardShadow" Color="#0A000000"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="BrushWindow" Color="#F4F5FB"/>
+          <SolidColorBrush x:Key="BrushWindow" Color="#F6F7F9"/>
           <SolidColorBrush x:Key="BrushCard" Color="#FFFFFF"/>
-          <SolidColorBrush x:Key="BrushField" Color="#F8F9FC"/>
+          <SolidColorBrush x:Key="BrushField" Color="#F1F3F6"/>
           <SolidColorBrush x:Key="BrushElevated" Color="#FFFFFF"/>
-          <SolidColorBrush x:Key="BrushBorder" Color="#E4E7F0"/>
-          <SolidColorBrush x:Key="BrushBorderMuted" Color="#C7CBD9"/>
-          <SolidColorBrush x:Key="BrushText" Color="#1E1B2E"/>
-          <SolidColorBrush x:Key="BrushMuted" Color="#6B6F8A"/>
-          <SolidColorBrush x:Key="BrushDim" Color="#9A9DB5"/>
-          <SolidColorBrush x:Key="BrushAccent" Color="#7C3AED"/>
-          <SolidColorBrush x:Key="BrushAccentHover" Color="#8B5CF6"/>
-          <SolidColorBrush x:Key="BrushAccentSoft" Color="#EDE9FE"/>
-          <SolidColorBrush x:Key="BrushSelect" Color="#7C3AED"/>
-          <SolidColorBrush x:Key="BrushSelectPlate" Color="#EDE9FE"/>
-          <SolidColorBrush x:Key="BrushThumbBg" Color="#F1F5F9"/>
-          <SolidColorBrush x:Key="BrushDash" Color="#B8A4F0"/>
-          <SolidColorBrush x:Key="BrushDashFill" Color="#0A7C3AED"/>
+          <SolidColorBrush x:Key="BrushBorder" Color="#E2E5EA"/>
+          <SolidColorBrush x:Key="BrushBorderMuted" Color="#C6CBD2"/>
+          <SolidColorBrush x:Key="BrushText" Color="#1F2328"/>
+          <SolidColorBrush x:Key="BrushMuted" Color="#5C6470"/>
+          <SolidColorBrush x:Key="BrushDim" Color="#98A0AA"/>
+          <SolidColorBrush x:Key="BrushAccent" Color="#1A73E8"/>
+          <SolidColorBrush x:Key="BrushAccentHover" Color="#1765CC"/>
+          <SolidColorBrush x:Key="BrushAccentSoft" Color="#E8F0FE"/>
+          <SolidColorBrush x:Key="BrushOnAccent" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="BrushSelect" Color="#1A73E8"/>
+          <SolidColorBrush x:Key="BrushSelectPlate" Color="#E8F0FE"/>
+          <SolidColorBrush x:Key="BrushThumbBg" Color="#EAEDF1"/>
+          <SolidColorBrush x:Key="BrushThumbRing" Color="#16000000"/>
+          <SolidColorBrush x:Key="BrushDash" Color="#A8C7FA"/>
+          <SolidColorBrush x:Key="BrushDashFill" Color="#0A1A73E8"/>
           <SolidColorBrush x:Key="BrushCardShadow" Color="#0A000000"/>
         </ResourceDictionary>
-        <!-- Dark: same structure, deeper surfaces (user preference) -->
+        <!-- Dark: deep neutral surfaces, light-blue accent with dark glyphs on it -->
         <ResourceDictionary x:Key="Dark">
-          <SolidColorBrush x:Key="BrushWindow" Color="#0F1115"/>
-          <SolidColorBrush x:Key="BrushCard" Color="#1A1D24"/>
-          <SolidColorBrush x:Key="BrushField" Color="#14171E"/>
-          <SolidColorBrush x:Key="BrushElevated" Color="#22262F"/>
-          <SolidColorBrush x:Key="BrushBorder" Color="#2A2F3A"/>
-          <SolidColorBrush x:Key="BrushBorderMuted" Color="#3A4150"/>
-          <SolidColorBrush x:Key="BrushText" Color="#E8ECF4"/>
-          <SolidColorBrush x:Key="BrushMuted" Color="#9AA3B2"/>
-          <SolidColorBrush x:Key="BrushDim" Color="#6B7280"/>
-          <SolidColorBrush x:Key="BrushAccent" Color="#A78BFA"/>
-          <SolidColorBrush x:Key="BrushAccentHover" Color="#C4B5FD"/>
-          <SolidColorBrush x:Key="BrushAccentSoft" Color="#2E2648"/>
-          <SolidColorBrush x:Key="BrushSelect" Color="#8B5CF6"/>
-          <SolidColorBrush x:Key="BrushSelectPlate" Color="#2A3140"/>
-          <SolidColorBrush x:Key="BrushThumbBg" Color="#1A222C"/>
-          <SolidColorBrush x:Key="BrushDash" Color="#6D5A9A"/>
-          <SolidColorBrush x:Key="BrushDashFill" Color="#1A7C3AED"/>
+          <SolidColorBrush x:Key="BrushWindow" Color="#101114"/>
+          <SolidColorBrush x:Key="BrushCard" Color="#1A1C20"/>
+          <SolidColorBrush x:Key="BrushField" Color="#141619"/>
+          <SolidColorBrush x:Key="BrushElevated" Color="#24272C"/>
+          <SolidColorBrush x:Key="BrushBorder" Color="#2B2E34"/>
+          <SolidColorBrush x:Key="BrushBorderMuted" Color="#3F434B"/>
+          <SolidColorBrush x:Key="BrushText" Color="#E8EAED"/>
+          <SolidColorBrush x:Key="BrushMuted" Color="#9AA0A6"/>
+          <SolidColorBrush x:Key="BrushDim" Color="#6E747C"/>
+          <SolidColorBrush x:Key="BrushAccent" Color="#8AB4F8"/>
+          <SolidColorBrush x:Key="BrushAccentHover" Color="#AECBFA"/>
+          <SolidColorBrush x:Key="BrushAccentSoft" Color="#20304A"/>
+          <SolidColorBrush x:Key="BrushOnAccent" Color="#17202B"/>
+          <SolidColorBrush x:Key="BrushSelect" Color="#8AB4F8"/>
+          <SolidColorBrush x:Key="BrushSelectPlate" Color="#223349"/>
+          <SolidColorBrush x:Key="BrushThumbBg" Color="#23262C"/>
+          <SolidColorBrush x:Key="BrushThumbRing" Color="#26FFFFFF"/>
+          <SolidColorBrush x:Key="BrushDash" Color="#4E6485"/>
+          <SolidColorBrush x:Key="BrushDashFill" Color="#148AB4F8"/>
           <SolidColorBrush x:Key="BrushCardShadow" Color="#40000000"/>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
@@ -116,14 +122,14 @@
     <Style Selector="Button:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource BrushAccentSoft}"/>
     </Style>
-    <Style Selector="Button.accent">
+    <Style Selector="Button.primary">
       <Setter Property="Background" Value="{DynamicResource BrushAccent}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushAccent}"/>
-      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="Foreground" Value="{DynamicResource BrushOnAccent}"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Padding" Value="18,9"/>
     </Style>
-    <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource BrushAccentHover}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushAccentHover}"/>
     </Style>

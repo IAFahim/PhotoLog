@@ -451,6 +451,21 @@ internal static class Core
 
             Check(FmtDate(new DateTime(2026, 7, 28, 8, 23, 59)) == "Jul 28, 2026 at 8:23:59 AM", "date format matches reference");
 
+            // Justified grid: every closed row's aspect-true widths + gaps must exactly fill the width.
+            double[] mix = [1.5, 0.75, 1.33, 1.0, 3.0, 0.56, 1.5, 1.78, 0.75, 1.5];
+            var rows = JustifiedPanel.Rows(mix, 620, 160, 4);
+            Check(rows.Count > 1 && rows[^1].Start + rows[^1].Count == mix.Length, "justified rows cover all photos in order");
+            var flush = true;
+            for (var r = 0; r < rows.Count - 1; r++)
+            {
+                var (s, n, h) = rows[r];
+                double w = (n - 1) * 4;
+                for (var i = s; i < s + n; i++) w += mix[i] * h;
+                flush &= Math.Abs(w - 620) < 0.01 && h > 80 && h < 320;
+            }
+            Check(flush, "each justified row exactly fills the width at a sane height");
+            Check(JustifiedPanel.Rows([5.0], 620, 160, 4)[0].H < 160, "single ultra-wide photo shrinks to fit, never crops");
+
             var found = Scan(Path.Combine(tmp, "in"));
             var names = found.Select(f => f.Name).ToArray();
             Console.WriteLine("  scan: " + string.Join(", ", names));

@@ -10,10 +10,6 @@ namespace PhotoLog.Avalonia;
 /// One cell in the thumbnail grid. Thumb/Caption arrive later (async render), Selected toggles on click.
 public class PhotoItem : INotifyPropertyChanged
 {
-    /// Fit every photo fully inside this box (scale down, never crop). Aspect is always preserved.
-    public const double MaxCellH = 160;
-    public const double MaxCellW = 280;
-    public const double MinCell = 48;
     /// Inset when selected so the photo shrinks and the plate behind reads larger.
     const double SelectInset = 10;
 
@@ -28,8 +24,7 @@ public class PhotoItem : INotifyPropertyChanged
     bool _selected;
     bool _inSelectionMode; // any photo in the library is selected → show empty circles
     bool _activePreview; // currently in the live preview (filmstrip ring)
-    double _cellW = MaxCellH; // square placeholder until thumb paints
-    double _cellH = MaxCellH;
+    double _aspect = 1.0; // square placeholder until thumb decodes
 
     public Bitmap? Thumb
     {
@@ -37,12 +32,7 @@ public class PhotoItem : INotifyPropertyChanged
         set
         {
             if (!Set(ref _thumb, value) || value is null) return;
-            // Scale to fit MaxCellW × MaxCellH; entire image visible (letterbox by shrinking the cell).
-            var iw = Math.Max(1.0, value.PixelSize.Width);
-            var ih = Math.Max(1.0, value.PixelSize.Height);
-            var scale = Math.Min(MaxCellW / iw, MaxCellH / ih);
-            CellW = Math.Max(MinCell, iw * scale);
-            CellH = Math.Max(MinCell, ih * scale);
+            Aspect = Math.Max(1.0, value.PixelSize.Width) / Math.Max(1.0, value.PixelSize.Height);
         }
     }
 
@@ -89,9 +79,8 @@ public class PhotoItem : INotifyPropertyChanged
         set => Set(ref _activePreview, value);
     }
 
-    /// Cell size in DIPs — always the full image aspect (scaled to fit max box).
-    public double CellW { get => _cellW; private set => Set(ref _cellW, value); }
-    public double CellH { get => _cellH; private set => Set(ref _cellH, value); }
+    /// Photo width ÷ height — the justified grid shapes the cell to match exactly.
+    public double Aspect { get => _aspect; private set => Set(ref _aspect, value); }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
