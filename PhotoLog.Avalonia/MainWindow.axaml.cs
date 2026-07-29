@@ -66,8 +66,13 @@ public partial class MainWindow : Window
         {
             _drop = s.DropShadow;
             SelectDrop(s.DropShadow);
-            if (ShadowXBox is not null) ShadowXBox.Value = s.ShadowX;
-            if (ShadowYBox is not null) ShadowYBox.Value = s.ShadowY;
+            // Repair bad Y=0 that snuck into prefs while Light expects −1 (clipped spinner era).
+            var sx = s.ShadowX;
+            var sy = s.ShadowY;
+            if (s.DropShadow == DropShadow.Light && sx == 1 && sy == 0)
+                sy = Core.DefaultShadowY;
+            if (ShadowXBox is not null) ShadowXBox.Value = sx;
+            if (ShadowYBox is not null) ShadowYBox.Value = sy;
             SyncOffsetEnabled();
             OutBox.Text = string.IsNullOrWhiteSpace(s.OutFolder)
                 ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "PhotoLog-output")
@@ -464,7 +469,13 @@ public partial class MainWindow : Window
                     : $"{ran} YOLO + {cached} cache";
             AiStatus.Text = hit == 0
                 ? $"AI select “{cat}”: no matches ({how}). COCO objects only."
-                : $"AI select “{cat}”: selected {hit} of {_items.Count} ({how}).";
+                : $"AI select “{cat}”: selected {hit} of {_items.Count} ({how}). Use Next ▶ or the purple map.";
+            // Land on the first hit — don’t leave the user hunting through 400 thumbs.
+            if (hit > 0)
+            {
+                var first = _items.First(i => i.Selected);
+                JumpToPhoto(first);
+            }
             if (HasOverride) await Refresh();
         }
         catch (Exception ex)
@@ -641,6 +652,7 @@ public partial class MainWindow : Window
     // --- Selection map (editor-style overview ruler) + prev/next jump ---
 
     bool _mapScheduled;
+    int _mapRetries;
 
     void ScheduleSelectionMap()
     {
@@ -660,43 +672,62 @@ public partial class MainWindow : Window
 
     void RebuildSelectionMap()
     {
-        if (SelectMarks is null || PhotoScroll is null || PhotoGrid is null) return;
+        if (SelectMarks is null || PhotoScroll is null || PhotoGrid is null || SelectOverview is null) return;
         SelectMarks.Children.Clear();
         var selected = _items.Where(i => i.Selected).ToList();
         if (selected.Count == 0) return;
 
-        var extent = PhotoScroll.Extent.Height;
-        var railH = SelectMarks.Bounds.Height;
-        if (extent < 1 || railH < 1)
+        // Empty Canvas measures 0×0 — force size from the overview rail (the whole point of the map).
+        var railH = Math.Max(0, SelectOverview.Bounds.Height - 6);
+        var railW = Math.Max(0, SelectOverview.Bounds.Width - 4);
+        if (railH < 8)
         {
-            // layout not ready — try once more next frame
-            ScheduleSelectionMap();
+            if (_mapRetries++ < 8) ScheduleSelectionMap();
             return;
         }
+        _mapRetries = 0;
+        SelectMarks.Width = railW > 0 ? railW : 18;
+        SelectMarks.Height = railH;
 
-        IBrush? brush = null;
-        if (Application.Current?.Resources.TryGetResource("BrushSelect", null, out var r) == true
-            && r is IBrush b) brush = b;
-        brush ??= new SolidColorBrush(Color.Parse("#8B5CF6"));
+        var extent = PhotoScroll.Extent.Height;
+        // Prefer real layout Y; if Extent not ready yet, fall back to index fraction.
+        var useLayout = extent >= 1;
+        var n = Math.Max(1, _items.Count);
 
-        // Map each selected cell’s Y into the rail (0 = top of library, 1 = bottom).
+        var brush = new SolidColorBrush(Color.Parse("#A78BFA")); // bright violet — readable on dark track
+
         foreach (var item in selected)
         {
-            var cell = FindVisualFor(item);
-            if (cell is null) continue;
-            var pt = cell.TranslatePoint(new Point(0, cell.Bounds.Height * 0.5), PhotoGrid);
-            if (pt is null) continue;
-            var frac = Math.Clamp(pt.Value.Y / extent, 0, 1);
-            var markH = Math.Max(3, Math.Min(10, railH * 0.02));
+            double frac;
+            if (useLayout)
+            {
+                var cell = FindVisualFor(item);
+                var pt = cell?.TranslatePoint(new Point(0, cell.Bounds.Height * 0.5), PhotoGrid);
+                if (pt is { } p && p.Y >= 0)
+                    frac = Math.Clamp(p.Y / extent, 0, 1);
+                else
+                {
+                    var idx = _items.IndexOf(item);
+                    frac = (idx + 0.5) / n;
+                }
+            }
+            else
+            {
+                var idx = _items.IndexOf(item);
+                frac = (idx + 0.5) / n;
+            }
+
+            var markH = Math.Max(4, Math.Min(12, railH / Math.Max(8, selected.Count * 0.5)));
             var top = Math.Clamp(frac * railH - markH / 2, 0, Math.Max(0, railH - markH));
             var mark = new Border
             {
-                Width = 12,
+                Width = Math.Max(10, railW - 4),
                 Height = markH,
                 CornerRadius = new CornerRadius(2),
                 Background = brush,
                 Tag = item,
                 Cursor = new Cursor(StandardCursorType.Hand),
+                Opacity = 0.95,
             };
             ToolTip.SetTip(mark, item.Name);
             Canvas.SetLeft(mark, 1);
@@ -707,23 +738,22 @@ public partial class MainWindow : Window
 
     void UpdateViewportMark()
     {
-        if (SelectViewport is null || PhotoScroll is null || SelectMarks is null) return;
+        if (SelectViewport is null || PhotoScroll is null || SelectOverview is null) return;
         var extent = PhotoScroll.Extent.Height;
         var view = PhotoScroll.Viewport.Height;
-        var railH = SelectMarks.Bounds.Height;
+        var railH = Math.Max(0, SelectOverview.Bounds.Height - 6);
         if (extent < 1 || railH < 1 || view < 1)
         {
             SelectViewport.IsVisible = false;
             return;
         }
         SelectViewport.IsVisible = true;
-        var maxOff = Math.Max(1, extent - view);
         var topFrac = PhotoScroll.Offset.Y / extent;
         var hFrac = view / extent;
-        var h = Math.Max(12, hFrac * railH);
+        var h = Math.Max(14, hFrac * railH);
         var top = Math.Clamp(topFrac * railH, 0, Math.Max(0, railH - h));
         SelectViewport.Height = h;
-        SelectViewport.Margin = new Thickness(3, top + 2, 3, 0);
+        SelectViewport.Margin = new Thickness(4, top + 3, 4, 0);
     }
 
     void SelectOverview_Pressed(object? sender, PointerPressedEventArgs e)

@@ -158,12 +158,12 @@
               <TextBlock x:Name="CountText" Classes="section" Text="0 of 0 selected"
                          VerticalAlignment="Center"/>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                <Button x:Name="PrevSelBtn" Classes="quiet" Content="↑ sel" Padding="10,6"
+                <Button x:Name="PrevSelBtn" Classes="quiet" Content="◀ Prev" Padding="12,6"
                         IsEnabled="False" Click="PrevSelected_Click"
-                        ToolTip.Tip="Jump to previous selected photo (like editor find prev)"/>
-                <Button x:Name="NextSelBtn" Classes="quiet" Content="↓ sel" Padding="10,6"
+                        ToolTip.Tip="Jump to previous selected photo"/>
+                <Button x:Name="NextSelBtn" Classes="quiet" Content="Next ▶" Padding="12,6"
                         IsEnabled="False" Click="NextSelected_Click"
-                        ToolTip.Tip="Jump to next selected photo (like editor find next)"/>
+                        ToolTip.Tip="Jump to next selected photo"/>
                 <Button Classes="quiet" Content="Select all" Padding="12,6" Click="SelectAll_Click"/>
                 <Button Classes="quiet" Content="Select none" Padding="12,6" Click="SelectNone_Click"/>
               </StackPanel>
@@ -230,9 +230,7 @@
                                 ToolTip.Tip="Select or deselect every photo from this day"
                                 PointerPressed="DayHeader_Click">
                           <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,10,2,8">
-                            <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
-                                    BorderBrush="{DynamicResource BrushBorderMuted}" Background="{DynamicResource BrushCard}"
-                                    IsVisible="{Binding ShowEmptyDayCheck}"/>
+                            <!-- Empty day ring hidden — only show − / ✓ when that day has selection. -->
                             <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
                                     BorderBrush="{DynamicResource BrushSelect}" Background="{DynamicResource BrushSelect}"
                                     IsVisible="{Binding ShowPartialDayCheck}">
@@ -281,11 +279,7 @@
                                     <Panel>
                                       <Image Source="{Binding Thumb}" Stretch="Uniform"
                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                      <Border Width="24" Height="24" Margin="6" ZIndex="4"
-                                              HorizontalAlignment="Left" VerticalAlignment="Top"
-                                              CornerRadius="12" BorderThickness="2"
-                                              BorderBrush="#FFFFFF" Background="#99000000"
-                                              IsVisible="{Binding ShowEmptyCheck}"/>
+                                      <!-- No empty rings on unselected — only filled ✓ on selected (less noise). -->
                                       <Border Width="24" Height="24" Margin="6" ZIndex="4"
                                               HorizontalAlignment="Left" VerticalAlignment="Top"
                                               CornerRadius="12" BorderThickness="2"
@@ -311,25 +305,24 @@
                 </ItemsControl>
               </ScrollViewer>
 
-              <!-- Overview ruler: purple ticks = selected photos (editor-style scroll map). -->
-              <Border Grid.Column="1" x:Name="SelectOverview" Width="18" Margin="6,0,0,0"
+              <!-- Overview ruler: purple ticks = selected (editor scrollbar marks). Canvas must be sized — empty Canvas measures 0. -->
+              <Border Grid.Column="1" x:Name="SelectOverview" Width="22" Margin="6,0,0,0"
                       IsVisible="False" Cursor="Hand" ClipToBounds="True"
-                      CornerRadius="6" BorderThickness="1"
-                      BorderBrush="{DynamicResource BrushBorder}"
+                      CornerRadius="8" BorderThickness="1"
+                      BorderBrush="{DynamicResource BrushSelect}"
                       Background="{DynamicResource BrushField}"
-                      ToolTip.Tip="Selection map (like editor scrollbar marks). Click a tick to jump there."
+                      ToolTip.Tip="Selection map — purple ticks = selected photos. Click to jump."
                       PointerPressed="SelectOverview_Pressed"
                       SizeChanged="SelectOverview_SizeChanged">
                 <Panel>
-                  <!-- faint track -->
-                  <Border Margin="4,2" CornerRadius="3"
-                          Background="{DynamicResource BrushBorder}" Opacity="0.35"/>
-                  <!-- current viewport (semi-transparent band) -->
-                  <Border x:Name="SelectViewport" Margin="3,0" HorizontalAlignment="Stretch"
-                          Height="24" VerticalAlignment="Top" CornerRadius="3"
-                          Background="{DynamicResource BrushText}" Opacity="0.12"
+                  <Border Margin="5,3" CornerRadius="3"
+                          Background="{DynamicResource BrushBorder}" Opacity="0.4"/>
+                  <Border x:Name="SelectViewport" Margin="4,0" HorizontalAlignment="Stretch"
+                          Height="28" VerticalAlignment="Top" CornerRadius="3"
+                          Background="{DynamicResource BrushText}" Opacity="0.14"
                           IsHitTestVisible="False"/>
-                  <Canvas x:Name="SelectMarks" Margin="2,2"/>
+                  <!-- Width/Height set in code from parent Bounds (Canvas alone is 0×0). -->
+                  <Canvas x:Name="SelectMarks" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                 </Panel>
               </Border>
             </Grid>
