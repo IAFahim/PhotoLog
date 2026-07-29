@@ -23,6 +23,7 @@ public partial class MainWindow : Window
     (DateOnly? Date, TimeOnly? Time, string Addr, DropShadow Drop, int Dx, int Dy) _rendered;
     bool _loadingSettings; // suppress Save/Refresh while applying prefs into the UI
     DropShadow _drop = DropShadow.Light; // source of truth (combo can fire before items exist)
+    string _theme = "Dark";
 
     public MainWindow() : this(null) { }
 
@@ -58,8 +59,26 @@ public partial class MainWindow : Window
                 : s.OutFolder;
             if (!string.IsNullOrWhiteSpace(s.LastFolder)) FolderBox.Text = s.LastFolder;
             AddrBox.Text = s.Address ?? "";
+            _theme = string.Equals(s.Theme, "Light", StringComparison.OrdinalIgnoreCase) ? "Light" : "Dark";
+            Settings.ApplyTheme(_theme);
+            SyncThemeButton();
         }
         finally { _loadingSettings = false; }
+    }
+
+    void SyncThemeButton()
+    {
+        if (ThemeBtn is null) return;
+        // button shows the mode you switch *to*
+        ThemeBtn.Content = _theme == "Dark" ? "Light mode" : "Dark mode";
+    }
+
+    void Theme_Click(object? sender, RoutedEventArgs e)
+    {
+        _theme = _theme == "Dark" ? "Light" : "Dark";
+        Settings.ApplyTheme(_theme);
+        SyncThemeButton();
+        Persist();
     }
 
     void SelectDrop(DropShadow drop)
@@ -110,6 +129,7 @@ public partial class MainWindow : Window
                 OutFolder = OutBox?.Text?.Trim(),
                 LastFolder = FolderBox?.Text?.Trim(),
                 Address = AddrBox?.Text,
+                Theme = _theme,
             });
         }
         catch { /* prefs are best-effort; never crash the UI */ }
@@ -317,6 +337,7 @@ public partial class MainWindow : Window
     {
         _preview = item;
         PreviewImage.Source = item.Thumb;
+        PreviewEmpty.IsVisible = item.Thumb is null;
         PreviewName.Text = item.Name + (item.Selected ? "  [selected ✓]" : "  [not selected]");
         CaptionBox.Text = item.Caption;
         SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = true;
@@ -327,7 +348,8 @@ public partial class MainWindow : Window
     {
         _preview = null;
         PreviewImage.Source = null;
-        PreviewName.Text = "Select a photo to preview and caption it";
+        PreviewEmpty.IsVisible = true;
+        PreviewName.Text = "Select a photo to preview and add caption";
         CaptionBox.Text = "";
         SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = false;
         SyncCaptionButtons();
@@ -339,6 +361,59 @@ public partial class MainWindow : Window
         var ready = Caption.Ready;
         CaptionBtn.IsEnabled = ready && _preview is not null;
         CaptionAllBtn.IsEnabled = ready && _items.Any(i => i.Selected);
+        if (AiSelectBtn is not null)
+            AiSelectBtn.IsEnabled = ready && _items.Count > 0;
+    }
+
+    string AiCategory
+    {
+        get
+        {
+            var custom = AiCustomBox?.Text?.Trim();
+            if (!string.IsNullOrEmpty(custom)) return custom;
+            if (AiCategoryBox?.SelectedItem is ComboBoxItem { Content: string s }) return s;
+            return "Furniture";
+        }
+    }
+
+    async void AiSelect_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_items.Count == 0) return;
+        if (!await EnsureModel()) return;
+        var cat = AiCategory;
+        AiSelectBtn.IsEnabled = CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = false;
+        AiProgress.IsVisible = true;
+        AiProgress.IsIndeterminate = false;
+        AiProgress.Value = 0;
+        var hit = 0;
+        try
+        {
+            for (var i = 0; i < _items.Count; i++)
+            {
+                var item = _items[i];
+                AiStatus.Text = $"AI select “{cat}”: {i + 1} of {_items.Count} — {item.Name}…";
+                AiProgress.Value = 100.0 * i / _items.Count;
+                // Matches runs on the thread pool (same as Caption) so the UI does not freeze.
+                var yes = await Caption.Matches(item.Path, cat, CancellationToken.None);
+                item.Selected = yes;
+                if (yes) hit++;
+            }
+            AiProgress.Value = 100;
+            UpdateCount();
+            AiStatus.Text = hit == 0
+                ? $"AI select “{cat}”: no matches."
+                : $"AI select “{cat}”: selected {hit} of {_items.Count}.";
+            if (HasOverride) await Refresh();
+        }
+        catch (Exception ex)
+        {
+            AiStatus.Text = "AI select failed: " + ex.Message;
+        }
+        finally
+        {
+            AiProgress.IsVisible = false;
+            SyncCaptionButtons();
+        }
     }
 
     async void Caption_LostFocus(object? sender, RoutedEventArgs e)
@@ -380,11 +455,14 @@ public partial class MainWindow : Window
         {
             for (var i = 0; i < items.Count; i++)
             {
-                AiStatus.Text = $"Captioning {i + 1} of {items.Count} — {items[i].Name}…";
-                var (text, tps) = await Caption.Describe(items[i].Path, CancellationToken.None);
-                items[i].Caption = text;
-                if (_preview == items[i]) CaptionBox.Text = text;
-                await RestampOne(items[i]);
+                var item = items[i];
+                AiStatus.Text = $"Captioning {i + 1} of {items.Count} — {item.Name}…";
+                // Describe always runs on the thread pool; keep UI free for paint/input.
+                var (text, tps) = await Caption.Describe(item.Path, CancellationToken.None)
+                    .ConfigureAwait(true);
+                item.Caption = text;
+                if (_preview == item) CaptionBox.Text = text;
+                await RestampOne(item);
                 AiStatus.Text = $"Captioned {i + 1} of {items.Count} ({tps:0.0} tok/s). Exports will use this name.";
             }
         }

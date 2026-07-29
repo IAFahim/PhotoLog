@@ -125,9 +125,10 @@ internal static class Core
     static string[] Lines(string? block) =>
         (block ?? "").Trim() is { Length: > 0 } s ? s.ReplaceLineEndings("\n").Split('\n') : [];
 
+    /// Stamp is date + address only. Caption is never drawn on the image (rename / UI only).
     public static string[] StampLines(Image img, string path, DateOnly? overrideDate, string? addr,
                                       string? caption = null, TimeOnly? overrideTime = null) =>
-        [DateLine(img, path, overrideDate, overrideTime), .. Lines(addr), .. Lines(caption)];
+        [DateLine(img, path, overrideDate, overrideTime), .. Lines(addr)];
 
     /// Write DateTimeOriginal / DateTime / DateTimeDigitized so embedded metadata matches the stamp.
     public static void WriteExif(Image img, DateTime when)
@@ -294,9 +295,9 @@ internal static class Core
         Directory.CreateDirectory(outDir);
         using var img = Image.Load(src);
         img.Mutate(c => c.AutoOrient());
-        var cleanCap = string.IsNullOrWhiteSpace(caption) ? "" : Caption.Tidy(caption);
+        // caption is for ExportFileName only — never stamped onto pixels
         var when = EffectiveTime(img, src, overrideDate, overrideTime);
-        Stamp(img, StampLines(img, src, overrideDate, addr, cleanCap, overrideTime), drop, shadowX, shadowY);
+        Stamp(img, StampLines(img, src, overrideDate, addr, overrideTime: overrideTime), drop, shadowX, shadowY);
         WriteExif(img, when); // always — stamp, EXIF, and FS times share one clock
         var dest = Path.Combine(outDir, name);
         img.Save(dest);
@@ -547,10 +548,14 @@ internal static class Core
             using (var uns = Image.Load(bPath))
             {
                 var selLines = StampLines(sel, aPath, selDate, selAddr, selCap, selTime);
-                Check(selLines is [_, "1521 Meander Rd", "a green field at dusk"], "checked photo: date, then address, then caption last");
-                Check(StampLines(uns, bPath, unsDate, unsAddr, unsCap, unsTime).Length == 1, "unchecked photo gets no address and no caption");
-                Check(StampLines(sel, aPath, selDate, selAddr, "", selTime).Length == 2, "cleared caption -> no caption line");
-                Check(StampLines(sel, aPath, selDate, "", selCap, selTime) is [_, "a green field at dusk"], "caption without address still stamps");
+                Check(selLines is ["Jul 28, 2026 at 12:00:00 PM", "1521 Meander Rd"],
+                      "checked photo: date + address only (caption never stamped on image)");
+                Check(StampLines(uns, bPath, unsDate, unsAddr, unsCap, unsTime).Length == 1,
+                      "unchecked photo gets no address and no caption");
+                Check(StampLines(sel, aPath, selDate, selAddr, "ignored caption text", selTime).Length == 2,
+                      "caption argument is ignored for stamp lines");
+                Check(StampLines(sel, aPath, selDate, "", selCap, selTime) is ["Jul 28, 2026 at 12:00:00 PM"],
+                      "caption without address: date only, no caption on pixels");
             }
             Check(File.Exists(selExport) && MaxDiff(aPath, selExport, 0.5f, 0f, 1f, 0.35f) > 60,
                   "scoped export wrote the checked photo's stamp");
@@ -624,12 +629,13 @@ internal static class Core
                         OutFolder = "/tmp/out",
                         LastFolder = "/tmp/in",
                         Address = "line1\nline2",
+                        Theme = "Light",
                     });
                     var back = Settings.Load();
                     Check(back.DropShadow == DropShadow.Heavy && back.ShadowX == 4 && back.ShadowY == -3
                           && back.OutFolder == "/tmp/out" && back.LastFolder == "/tmp/in"
-                          && back.Address == "line1\nline2",
-                          "settings Save/Load round-trips drop + offset + folders + address");
+                          && back.Address == "line1\nline2" && back.Theme == "Light",
+                          "settings Save/Load round-trips drop + offset + folders + address + theme");
                 }
                 finally { Settings.PathOverride = prev; }
             }

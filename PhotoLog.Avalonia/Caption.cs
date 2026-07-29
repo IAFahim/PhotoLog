@@ -12,12 +12,13 @@ using LLama.Sampling;
 
 namespace PhotoLog.Avalonia;
 
-/// Opt-in local image captioning: Gemma 4 E2B (vision) via llama.cpp, CPU only.
-/// Nothing is bundled — the GGUF pair is downloaded on first use into the user's data dir.
+/// Opt-in local vision: Gemma 4 E2B via llama.cpp (CPU). Caption + AI select.
+/// E2B is the smallest Gemma 4 that still does image understanding; Q4_0 + Q8 mmproj
+/// is the leanest practical pack (~3.4 GB). Text-only smaller models cannot see photos.
+/// Nothing is bundled — GGUFs download on first use into the user's data dir.
 internal static class Caption
 {
-    // ggml-org is the llama.cpp org's own mirror: Apache-2.0, no auth gate, and its Q8_0
-    // mmproj is the smallest vision projector published for this model.
+    // ggml-org mirror: Apache-2.0, no auth gate; Q8_0 mmproj is the smallest projector for E2B.
     const string Repo = "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/";
     public static readonly (string File, long Bytes)[] Files =
     [
@@ -82,53 +83,88 @@ internal static class Caption
     static readonly SemaphoreSlim Gate = new(1, 1); // ponytail: one caption at a time, a 3 GB model is not worth loading twice
 
     /// Caption one image. Throws if the model isn't downloaded — callers check Ready first.
-    public static async Task<(string Text, double TokensPerSecond)> Describe(string imagePath, CancellationToken ct)
+    /// Always runs on the thread pool: llama.cpp inference is CPU-heavy and freezes Avalonia
+    /// if it captures the UI sync context (even behind async/await).
+    public static Task<(string Text, double TokensPerSecond)> Describe(string imagePath, CancellationToken ct) =>
+        Task.Run(() => DescribeCore(imagePath, ct), ct);
+
+    /// Yes/no match for AI select (e.g. "furniture", "outdoors"). Same model, short answer.
+    public static Task<bool> Matches(string imagePath, string category, CancellationToken ct) =>
+        Task.Run(() => MatchesCore(imagePath, category, ct), ct);
+
+    static async Task<(string Text, double TokensPerSecond)> DescribeCore(string imagePath, CancellationToken ct)
     {
-        await Gate.WaitAsync(ct);
+        await Gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var p = new ModelParams(PathOf(Files[0].File)) { ContextSize = 4096, GpuLayerCount = 0 };
-            if (_weights is null)
-            {
-                _weights = await LLamaWeights.LoadFromFileAsync(p, ct);
-                var mp = MtmdContextParams.Default();
-                mp.UseGpu = false;
-                mp.NThreads = Environment.ProcessorCount;
-                _clip = await MtmdWeights.LoadFromFileAsync(PathOf(Files[1].File), _weights, mp, ct);
-            }
-
-            using var context = _weights.CreateContext(p); // fresh context per image: no state bleed
-            var exec = new InteractiveExecutor(context, _clip!);
-            // LoadMedia (not SafeMtmdEmbed.FromMediaFile) is what registers the bitmap with the mtmd
-            // context; the executor disposes the embed for us once the prompt is tokenized.
-            exec.Embeds.Add(_clip!.LoadMedia(imagePath)
-                            ?? throw new InvalidOperationException("the vision projector could not read " + imagePath));
-
-            var text = new StringBuilder();
-            var started = DateTime.UtcNow;
-            var tokens = 0;
-            var infer = new InferenceParams
-            {
-                MaxTokens = 48,
-                AntiPrompts = ["<end_of_turn>"],
-                SamplingPipeline = new DefaultSamplingPipeline { Temperature = 0.2f },
-            };
-            // "<image>" is the executor's placeholder — it swaps in the real media marker in place,
-            // so the picture lands inside the user turn instead of being appended after it.
-            var turn = $"<start_of_turn>user\n<image>\n{Prompt}<end_of_turn>\n<start_of_turn>model\n";
-            await foreach (var piece in exec.InferAsync(turn, infer, ct))
-            {
-                text.Append(piece);
-                tokens++;
-            }
-            exec.Embeds.Clear();
-            var seconds = (DateTime.UtcNow - started).TotalSeconds;
-            return (Tidy(text.ToString()), seconds > 0 ? tokens / seconds : 0);
+            await EnsureLoaded(ct).ConfigureAwait(false);
+            var raw = await Infer(imagePath, Prompt, maxTokens: 48, ct).ConfigureAwait(false);
+            var seconds = raw.Seconds;
+            return (Tidy(raw.Text), seconds > 0 ? raw.Tokens / seconds : 0);
         }
-        finally
+        finally { Gate.Release(); }
+    }
+
+    static async Task<bool> MatchesCore(string imagePath, string category, CancellationToken ct)
+    {
+        await Gate.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            Gate.Release();
+            await EnsureLoaded(ct).ConfigureAwait(false);
+            var cat = (category ?? "").Trim();
+            if (cat.Length == 0) return false;
+            // Force a one-token-ish answer so we can parse yes/no reliably.
+            var ask = $"Does this photo mainly show {cat}? Answer with only yes or no.";
+            var raw = await Infer(imagePath, ask, maxTokens: 8, ct).ConfigureAwait(false);
+            var s = Tidy(raw.Text).ToLowerInvariant();
+            if (s.StartsWith("yes") || s.Contains(" yes")) return true;
+            if (s.StartsWith("no") || s.Contains(" no")) return false;
+            // ambiguous → no select (safer than false positives)
+            return s.Contains("yes", StringComparison.Ordinal);
         }
+        finally { Gate.Release(); }
+    }
+
+    static async Task EnsureLoaded(CancellationToken ct)
+    {
+        if (_weights is not null && _clip is not null) return;
+        var p = new ModelParams(PathOf(Files[0].File)) { ContextSize = 4096, GpuLayerCount = 0 };
+        _weights = await LLamaWeights.LoadFromFileAsync(p, ct).ConfigureAwait(false);
+        var mp = MtmdContextParams.Default();
+        mp.UseGpu = false;
+        mp.NThreads = Environment.ProcessorCount;
+        _clip = await MtmdWeights.LoadFromFileAsync(PathOf(Files[1].File), _weights, mp, ct).ConfigureAwait(false);
+    }
+
+    static async Task<(string Text, int Tokens, double Seconds)> Infer(
+        string imagePath, string userPrompt, int maxTokens, CancellationToken ct)
+    {
+        var p = new ModelParams(PathOf(Files[0].File)) { ContextSize = 4096, GpuLayerCount = 0 };
+        using var context = _weights!.CreateContext(p); // fresh context per image: no state bleed
+        var exec = new InteractiveExecutor(context, _clip!);
+        // LoadMedia (not SafeMtmdEmbed.FromMediaFile) is what registers the bitmap with the mtmd
+        // context; the executor disposes the embed for us once the prompt is tokenized.
+        exec.Embeds.Add(_clip!.LoadMedia(imagePath)
+                        ?? throw new InvalidOperationException("the vision projector could not read " + imagePath));
+
+        var text = new StringBuilder();
+        var started = DateTime.UtcNow;
+        var tokens = 0;
+        var infer = new InferenceParams
+        {
+            MaxTokens = maxTokens,
+            AntiPrompts = ["<end_of_turn>"],
+            SamplingPipeline = new DefaultSamplingPipeline { Temperature = 0.1f },
+        };
+        // "<image>" is the executor's placeholder — it swaps in the real media marker in place.
+        var turn = $"<start_of_turn>user\n<image>\n{userPrompt}<end_of_turn>\n<start_of_turn>model\n";
+        await foreach (var piece in exec.InferAsync(turn, infer, ct).ConfigureAwait(false))
+        {
+            text.Append(piece);
+            tokens++;
+        }
+        exec.Embeds.Clear();
+        return (text.ToString(), tokens, (DateTime.UtcNow - started).TotalSeconds);
     }
 
     /// One line, no chat-template debris, no trailing period.
