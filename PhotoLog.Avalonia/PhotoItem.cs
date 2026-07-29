@@ -27,6 +27,7 @@ public class PhotoItem : INotifyPropertyChanged
     string _caption = "";
     bool _selected;
     bool _inSelectionMode; // any photo in the library is selected → show empty circles
+    bool _activePreview; // currently in the live preview (filmstrip ring)
     double _cellW = MaxCellH; // square placeholder until thumb paints
     double _cellH = MaxCellH;
 
@@ -80,6 +81,13 @@ public class PhotoItem : INotifyPropertyChanged
     public bool ShowEmptyCheck => _inSelectionMode && !_selected;
     /// Shrink inset when selected — full bleed when not (the plate behind fills the leftover).
     public Thickness ThumbMargin => _selected ? new Thickness(SelectInset) : default;
+
+    /// True when this photo is the live preview focus (bottom filmstrip highlight).
+    public bool IsActivePreview
+    {
+        get => _activePreview;
+        set => Set(ref _activePreview, value);
+    }
 
     /// Cell size in DIPs — always the full image aspect (scaled to fit max box).
     public double CellW { get => _cellW; private set => Set(ref _cellW, value); }

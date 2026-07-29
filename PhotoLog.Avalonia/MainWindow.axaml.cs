@@ -390,6 +390,7 @@ public partial class MainWindow : Window
 
     void ShowPreview(PhotoItem item)
     {
+        SetActivePreview(item);
         _preview = item;
         PreviewImage.Source = item.Thumb;
         var empty = item.Thumb is null;
@@ -400,10 +401,14 @@ public partial class MainWindow : Window
         CaptionBox.Text = item.Caption;
         SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = true;
         SyncCaptionButtons();
+        // Keep the active cell visible in the bottom filmstrip
+        Dispatcher.UIThread.Post(() => FindVisualForIn(SelectedList, item)?.BringIntoView(),
+            DispatcherPriority.Loaded);
     }
 
     void ClearPreview()
     {
+        SetActivePreview(null);
         _preview = null;
         PreviewImage.Source = null;
         PreviewEmpty.IsVisible = true;
@@ -842,10 +847,24 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(() => FindVisualFor(item)?.BringIntoView(), DispatcherPriority.Loaded);
     }
 
+    /// Mark one filmstrip/library item as the live preview focus.
+    void SetActivePreview(PhotoItem? item)
+    {
+        foreach (var i in _items)
+            if (i.IsActivePreview) i.IsActivePreview = false;
+        if (item is not null) item.IsActivePreview = true;
+    }
+
     Control? FindVisualFor(PhotoItem item)
     {
         if (PhotoGrid is null) return null;
         return FindByDataContext(PhotoGrid, item);
+    }
+
+    Control? FindVisualForIn(Visual? root, PhotoItem item)
+    {
+        if (root is null) return null;
+        return FindByDataContext(root, item);
     }
 
     static Control? FindByDataContext(Visual root, object dc)
