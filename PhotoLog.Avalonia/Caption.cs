@@ -132,14 +132,29 @@ internal static class Caption
     }
 
     /// One line, no chat-template debris, no trailing period.
+    /// First real content line wins (role-only lines like "model" are skipped).
     public static string Tidy(string raw)
     {
-        var s = raw.Replace("<end_of_turn>", " ").Replace("<start_of_turn>", " ").Trim();
-        var nl = s.IndexOfAny(['\n', '\r']);
-        if (nl >= 0) s = s[..nl];
-        s = s.Trim().Trim('"', '*', ' ').TrimEnd('.', ' ');
-        var words = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return words.Length <= 14 ? s : string.Join(' ', words[..14]);
+        var s = (raw ?? "")
+            .Replace("<end_of_turn>", "\n", StringComparison.Ordinal)
+            .Replace("<start_of_turn>", "\n", StringComparison.Ordinal)
+            .Replace("<image>", " ", StringComparison.Ordinal);
+
+        foreach (var line in s.ReplaceLineEndings("\n").Split('\n'))
+        {
+            var t = line.Trim().Trim('"', '*', ' ').TrimEnd('.', ' ', '\t');
+            if (t.Length == 0) continue;
+            // gemma chat roles that sometimes leak out as their own line
+            if (t is "model" or "user" or "system" or "assistant") continue;
+            // strip a leading "model " / "user " if the model echoed the role
+            if (t.StartsWith("model ", StringComparison.OrdinalIgnoreCase)) t = t[6..].TrimEnd('.', ' ');
+            if (t.StartsWith("user ", StringComparison.OrdinalIgnoreCase)) t = t[5..].TrimEnd('.', ' ');
+            t = t.TrimEnd('.', ' ');
+            if (t.Length == 0) continue;
+            var words = t.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return words.Length <= 14 ? t : string.Join(' ', words[..14]);
+        }
+        return "";
     }
 
     public static void Unload()

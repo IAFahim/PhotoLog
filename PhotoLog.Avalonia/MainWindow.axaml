@@ -6,133 +6,177 @@
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
         x:Class="PhotoLog.Avalonia.MainWindow"
         Width="1200" Height="840"
-        Background="Transparent"
-        TransparencyLevelHint="Mica, AcrylicBlur, None"
+        MinWidth="900" MinHeight="600"
         Title="PhotoLog">
 
-  <DockPanel Margin="16">
+  <!-- hierarchy: folder → options → grid/preview → export.
+       Sentence-case labels, one accent (Apply/Load), status next to actions. -->
+  <DockPanel Margin="20">
 
-    <!-- header -->
-    <StackPanel DockPanel.Dock="Top" Spacing="8">
-      <TextBlock Text="PhotoLog" FontSize="26" FontWeight="SemiBold"/>
-      <TextBlock Classes="hint" FontSize="13"
-                 Text="Stamp the date (and your address text, if given) on each photo's top-right corner."/>
-      <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
-        <TextBox x:Name="FolderBox" PlaceholderText="/path/to/photos — or click Browse" KeyDown="Folder_KeyDown"/>
-        <Button Grid.Column="1" Content="Browse…" Margin="6,0,0,0" Click="Browse_Click"/>
-        <Button Grid.Column="2" Content="Load" Margin="6,0,0,0" Classes="accent" Click="Load_Click"/>
+    <!-- header: title + folder load -->
+    <StackPanel DockPanel.Dock="Top" Spacing="10">
+      <StackPanel Spacing="2">
+        <TextBlock Text="PhotoLog" FontSize="24" FontWeight="SemiBold"/>
+        <TextBlock Classes="hint" FontSize="13" TextWrapping="Wrap"
+                   Text="Stamp date, optional address, and a caption on photos. Captioned exports are renamed from that caption."/>
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBox x:Name="FolderBox"
+                 PlaceholderText="Folder with photos"
+                 ToolTip.Tip="Path to a folder of photos on this machine"
+                 KeyDown="Folder_KeyDown"/>
+        <Button Grid.Column="1" Content="Browse…" Margin="8,0,0,0"
+                ToolTip.Tip="Choose a photo folder"
+                Click="Browse_Click"/>
+        <Button Grid.Column="2" Content="Load folder" Margin="8,0,0,0" Classes="accent"
+                Click="Load_Click"/>
       </Grid>
-      <TextBlock x:Name="Status" Classes="hint"
-                 Text="Pick a folder with Browse, or type its path and press Enter."/>
+      <TextBlock x:Name="Status" Classes="hint" TextWrapping="Wrap"
+                 Text="Choose a folder to get started."/>
+
       <Border Classes="card">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
-        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <TextBlock Classes="label" Text="Override date:"/>
-          <CalendarDatePicker x:Name="DatePart" Width="150"
-                              ToolTip.Tip="Leave empty to stamp each photo's own date. Picking a date replaces only the day — the time stays each photo's own."
-                              SelectedDateChanged="DateChanged"/>
-        </StackPanel>
-        <Button Grid.Column="1" Content="Clear" Margin="6,0,0,0" VerticalAlignment="Center"
-                ToolTip.Tip="Back to each photo's own date"
-                Click="ClearDate_Click"/>
-        <TextBlock Grid.Column="2" Classes="label" Text="Address (optional):" Margin="18,0,8,0"/>
-        <TextBox Grid.Column="3" x:Name="AddrBox" AcceptsReturn="True" Height="72"
-                 LostFocus="Addr_LostFocus"
-                 PlaceholderText="1521 Meander Rd&#10;Timmonsville SC 29161&#10;United States"/>
-        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" Margin="18,0,0,0" VerticalAlignment="Center"
-                    ToolTip.Tip="Shadow offset of the dark text behind the stamp. +X = right, -Y = up. 0/0 = none. Applies to every image, selected or not.">
-          <TextBlock Classes="label" Text="Shadow X"/>
-          <NumericUpDown x:Name="ShadowXBox" Value="1" Increment="1" FormatString="0" Width="110"
-                         ValueChanged="StyleChanged"/>
-          <TextBlock Classes="label" Text="Y" Margin="6,0,0,0"/>
-          <NumericUpDown x:Name="ShadowYBox" Value="-1" Increment="1" FormatString="0" Width="110"
-                         ValueChanged="StyleChanged"/>
-        </StackPanel>
-        <Button Grid.Column="5" Content="Refresh previews" Margin="8,0,0,0" VerticalAlignment="Center"
-                Click="Refresh_Click"/>
-      </Grid>
-      </Border>
-    </StackPanel>
-
-    <!-- footer -->
-    <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,14,0,0">
-      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-        <TextBlock Classes="label" Text="Output folder:" Margin="0,0,8,0"/>
-        <TextBox Grid.Column="1" x:Name="OutBox"/>
-        <Button Grid.Column="2" Content="Browse…" Margin="8,0,0,0" Click="OutBrowse_Click"/>
-        <Button Grid.Column="3" x:Name="ApplyBtn" Content="Apply" Margin="8,0,0,0" Classes="accent"
-                Click="Apply_Click"/>
-      </Grid>
-      <TextBlock x:Name="Result" Classes="hint" TextWrapping="Wrap"/>
-    </StackPanel>
-
-    <!-- grid + preview -->
-    <Grid ColumnDefinitions="3*,2*" Margin="0,14,0,0">
-      <Border Classes="card">
-      <DockPanel>
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
-          <TextBlock x:Name="CountText" Text="0/0 selected" VerticalAlignment="Center"/>
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-            <Button Content="Select all" Click="SelectAll_Click"/>
-            <Button Content="Select none" Click="SelectNone_Click"/>
+        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" RowDefinitions="Auto">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Classes="label" Text="Date override"/>
+            <CalendarDatePicker x:Name="DatePart" Width="150"
+                                ToolTip.Tip="Leave empty to use each photo’s own date. A picked date replaces only the day — the time stays each photo’s own."
+                                SelectedDateChanged="DateChanged"/>
           </StackPanel>
+          <Button Grid.Column="1" Content="Clear date" Margin="8,0,0,0" VerticalAlignment="Center"
+                  ToolTip.Tip="Use each photo’s own date again"
+                  Click="ClearDate_Click"/>
+          <TextBlock Grid.Column="2" Classes="label" Text="Address" Margin="20,6,8,0"
+                     VerticalAlignment="Top"/>
+          <TextBox Grid.Column="3" x:Name="AddrBox" AcceptsReturn="True" MinHeight="64" MaxHeight="96"
+                   LostFocus="Addr_LostFocus"
+                   PlaceholderText="Optional address lines"/>
+          <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" Margin="16,0,0,0"
+                      VerticalAlignment="Center"
+                      ToolTip.Tip="Shadow offset for the stamp. +X is right, −Y is up. 0/0 turns the shadow off.">
+            <TextBlock Classes="label" Text="Shadow X"/>
+            <NumericUpDown x:Name="ShadowXBox" Value="1" Increment="1" FormatString="0" Width="100"
+                           ValueChanged="StyleChanged"/>
+            <TextBlock Classes="label" Text="Y" Margin="4,0,0,0"/>
+            <NumericUpDown x:Name="ShadowYBox" Value="-1" Increment="1" FormatString="0" Width="100"
+                           ValueChanged="StyleChanged"/>
+          </StackPanel>
+          <Button Grid.Column="5" Content="Refresh previews" Margin="12,0,0,0" VerticalAlignment="Center"
+                  Click="Refresh_Click"/>
         </Grid>
-        <ScrollViewer>
-          <ItemsControl x:Name="PhotoGrid">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="local:PhotoItem">
-                <Border Width="150" Height="140" Margin="5" CornerRadius="8" ClipToBounds="True"
-                        Background="#20808080" Cursor="Hand" ToolTip.Tip="{Binding Tip}"
-                        PointerPressed="Cell_Click">
-                  <Panel>
-                    <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
-                    <!-- checkbox indicator: empty box / green check -->
-                    <Border Width="22" Height="22" Margin="6" HorizontalAlignment="Left" VerticalAlignment="Top"
-                            CornerRadius="5" BorderThickness="2" BorderBrush="#333333" Background="White"
-                            IsVisible="{Binding !Selected}"/>
-                    <Border Width="22" Height="22" Margin="6" HorizontalAlignment="Left" VerticalAlignment="Top"
-                            CornerRadius="5" BorderThickness="2" BorderBrush="#166534" Background="#22C55E"
-                            IsVisible="{Binding Selected}">
-                      <TextBlock Text="✓" Foreground="White" FontWeight="Bold" FontSize="14"
-                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <Border VerticalAlignment="Bottom" Background="#8C000000" Padding="4,2">
-                      <TextBlock Text="{Binding Name}" Foreground="White" FontSize="11"
-                                 TextTrimming="CharacterEllipsis"/>
-                    </Border>
-                  </Panel>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
-      </DockPanel>
+      </Border>
+    </StackPanel>
+
+    <!-- footer: export path + apply, status under the action -->
+    <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,16,0,0">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <TextBlock Classes="label" Text="Output folder" Margin="0,0,8,0"/>
+        <TextBox Grid.Column="1" x:Name="OutBox"
+                 PlaceholderText="Where stamped copies are written"/>
+        <Button Grid.Column="2" Content="Browse…" Margin="8,0,0,0" Click="OutBrowse_Click"/>
+        <Button Grid.Column="3" x:Name="ApplyBtn" Content="Apply to selected" Margin="8,0,0,0"
+                Classes="accent" Click="Apply_Click"
+                ToolTip.Tip="Write stamped copies. Captioned photos are renamed from their caption."/>
+      </Grid>
+      <TextBlock x:Name="Result" Classes="hint" TextWrapping="Wrap"
+                 Text="Select photos, then apply. Originals stay untouched."/>
+    </StackPanel>
+
+    <!-- body: grid + preview -->
+    <Grid ColumnDefinitions="3*,2*" Margin="0,14,0,0">
+
+      <Border Classes="card">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+            <TextBlock x:Name="CountText" Text="0 of 0 selected" VerticalAlignment="Center"
+                       FontWeight="SemiBold"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+              <Button Content="Select all" Click="SelectAll_Click"/>
+              <Button Content="Select none" Click="SelectNone_Click"/>
+            </StackPanel>
+          </Grid>
+
+          <!-- empty state: one clear next action -->
+          <StackPanel x:Name="EmptyGrid" VerticalAlignment="Center" HorizontalAlignment="Center"
+                      Spacing="10" Margin="24" IsVisible="True">
+            <TextBlock Text="No photos loaded" FontSize="16" FontWeight="SemiBold"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Classes="hint" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="280"
+                       Text="Load a folder of photos to stamp dates and optional captions."/>
+            <Button Content="Browse for folder…" HorizontalAlignment="Center" Classes="accent"
+                    Click="Browse_Click"/>
+          </StackPanel>
+
+          <ScrollViewer x:Name="PhotoScroll" IsVisible="False">
+            <ItemsControl x:Name="PhotoGrid">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:PhotoItem">
+                  <Border Width="150" Height="140" Margin="5" CornerRadius="8" ClipToBounds="True"
+                          Background="#20808080" Cursor="Hand" ToolTip.Tip="{Binding Tip}"
+                          PointerPressed="Cell_Click">
+                    <Panel>
+                      <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
+                      <Border Width="22" Height="22" Margin="6"
+                              HorizontalAlignment="Left" VerticalAlignment="Top"
+                              CornerRadius="5" BorderThickness="2" BorderBrush="#333333" Background="White"
+                              IsVisible="{Binding !Selected}"/>
+                      <Border Width="22" Height="22" Margin="6"
+                              HorizontalAlignment="Left" VerticalAlignment="Top"
+                              CornerRadius="5" BorderThickness="2" BorderBrush="#166534" Background="#22C55E"
+                              IsVisible="{Binding Selected}">
+                        <TextBlock Text="✓" Foreground="White" FontWeight="Bold" FontSize="14"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Border>
+                      <Border VerticalAlignment="Bottom" Background="#8C000000" Padding="4,2">
+                        <TextBlock Text="{Binding Name}" Foreground="White" FontSize="11"
+                                   TextTrimming="CharacterEllipsis"/>
+                      </Border>
+                    </Panel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
       </Border>
 
-      <!-- star row so a tall portrait preview shrinks to fit instead of overflowing -->
       <Border Grid.Column="1" Classes="card" Margin="14,0,0,0">
-      <Grid RowDefinitions="*,Auto,Auto,Auto,Auto">
-        <Image x:Name="PreviewImage" Stretch="Uniform" Margin="0,0,0,8"/>
-        <TextBlock Grid.Row="1" x:Name="PreviewName" TextAlignment="Center" TextWrapping="Wrap" Opacity="0.85"
-                   Text="Click an image to preview it and toggle selection"/>
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
-          <TextBox x:Name="CaptionBox" PlaceholderText="Caption (stamped below the address; edit or clear freely)"
-                   LostFocus="Caption_LostFocus" IsEnabled="False"/>
-          <Button Grid.Column="1" x:Name="CaptionBtn" Content="Caption" Margin="6,0,0,0"
-                  IsEnabled="False" Click="Caption_Click"/>
+        <Grid RowDefinitions="*,Auto,Auto,Auto,Auto,Auto">
+          <Image x:Name="PreviewImage" Stretch="Uniform" Margin="0,0,0,8"/>
+          <TextBlock Grid.Row="1" x:Name="PreviewName" TextAlignment="Center"
+                     TextWrapping="Wrap" TextTrimming="CharacterEllipsis" Opacity="0.85" MaxLines="2"
+                     Text="Select a photo to preview and caption it"/>
+
+          <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+            <TextBox x:Name="CaptionBox"
+                     PlaceholderText="Caption — stamped and used as the export file name"
+                     LostFocus="Caption_LostFocus" IsEnabled="False"
+                     ToolTip.Tip="One short line. Exports with a caption are renamed from it."/>
+            <Button Grid.Column="1" x:Name="CaptionBtn" Content="Caption" Margin="8,0,0,0"
+                    IsEnabled="False" Click="Caption_Click"
+                    ToolTip.Tip="Generate a short caption with the local AI model"/>
+          </Grid>
+
+          <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center"
+                      Spacing="8" Margin="0,10,0,0">
+            <Button x:Name="SaveOneBtn" Content="Save this photo" IsEnabled="False" Click="SaveOne_Click"
+                    ToolTip.Tip="Export only the photo in the preview"/>
+            <Button x:Name="CaptionAllBtn" Content="Caption selected" IsEnabled="False"
+                    Click="CaptionAll_Click"/>
+            <Button x:Name="DownloadModelBtn" Content="Download AI model"
+                    Click="DownloadModel_Click"
+                    ToolTip.Tip="One-time download. Captioning then runs offline."/>
+          </StackPanel>
+
+          <!-- loading next to the AI actions (not a global toast) -->
+          <ProgressBar Grid.Row="4" x:Name="AiProgress" Margin="0,10,0,0" Height="4"
+                       Minimum="0" Maximum="100" IsVisible="False"/>
+          <TextBlock Grid.Row="5" x:Name="AiStatus" Classes="hint" Margin="0,6,0,0"
+                     TextAlignment="Center" TextWrapping="Wrap"/>
         </Grid>
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,0">
-          <Button x:Name="SaveOneBtn" Content="Save this image" IsEnabled="False" Click="SaveOne_Click"/>
-          <Button x:Name="CaptionAllBtn" Content="Caption selected" IsEnabled="False" Click="CaptionAll_Click"/>
-          <Button x:Name="DownloadModelBtn" Content="Download AI model" Click="DownloadModel_Click"
-                  ToolTip.Tip="One-time download; captioning then runs fully offline on your machine."/>
-        </StackPanel>
-        <TextBlock Grid.Row="4" x:Name="AiStatus" Classes="hint" Margin="0,8,0,0"
-                   TextAlignment="Center" TextWrapping="Wrap"/>
-      </Grid>
       </Border>
     </Grid>
 

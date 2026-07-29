@@ -132,6 +132,7 @@ internal static class Core
     }
 
     /// Full-resolution stamped copy into outDir. Originals are never touched.
+    /// <paramref name="name"/> is the final file name inside outDir (use <see cref="ExportFileName"/>).
     public static string Export(string src, string name, string outDir, DateOnly? overrideDate, string? addr,
                                 int shadowX = DefaultShadowX, int shadowY = DefaultShadowY,
                                 string? caption = null)
@@ -139,10 +140,72 @@ internal static class Core
         Directory.CreateDirectory(outDir);
         using var img = Image.Load(src);
         img.Mutate(c => c.AutoOrient());
-        Stamp(img, StampLines(img, src, overrideDate, addr, caption), shadowX, shadowY);
+        // stamp uses the same tidy caption that feeds the rename slug
+        var cleanCap = string.IsNullOrWhiteSpace(caption) ? "" : Caption.Tidy(caption);
+        Stamp(img, StampLines(img, src, overrideDate, addr, cleanCap), shadowX, shadowY);
         var dest = Path.Combine(outDir, name);
         img.Save(dest); // encoder from extension; ImageSharp re-writes the EXIF profile it read
         return dest;
+    }
+
+    // ---- export naming: caption → filesystem-safe base name (pure, no model) ----
+
+    /// Illegal on Windows + Unix path separators + control chars. Kept as one set so names are portable.
+    static readonly char[] BadNameChars =
+        Path.GetInvalidFileNameChars().Concat(['/', '\\', ':', '*', '?', '"', '<', '>', '|']).Distinct().ToArray();
+
+    /// Collapse model-ish caption text into a short filesystem-safe base name (no extension).
+    /// Empty/whitespace after tidy → empty string (caller picks a fallback).
+    public static string Slug(string? caption, int maxLen = 60)
+    {
+        var s = Caption.Tidy(caption ?? "");
+        if (s.Length == 0) return "";
+
+        var chars = s.ToCharArray();
+        for (var i = 0; i < chars.Length; i++)
+        {
+            var c = chars[i];
+            if (c < 32 || BadNameChars.Contains(c)) chars[i] = ' ';
+        }
+        s = new string(chars);
+        // collapse runs of whitespace to a single space; trim ends / stray dots (Windows forbids trailing '.')
+        s = string.Join(' ', s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim(' ', '.');
+        if (s.Length == 0) return "";
+        if (s.Length > maxLen)
+        {
+            s = s[..maxLen].TrimEnd(' ', '.');
+            // don't cut mid-word when a space is nearby
+            var sp = s.LastIndexOf(' ');
+            if (sp >= maxLen / 2) s = s[..sp];
+        }
+        return s.Trim(' ', '.');
+    }
+
+    /// Build a unique export file name. Caption present → slug + original extension.
+    /// Empty caption → original base name. Collisions get _1, _2, … (stable, order-dependent).
+    /// <paramref name="used"/> is updated with the chosen name (OrdinalIgnoreCase).
+    public static string ExportFileName(string originalName, string? caption, ISet<string> used)
+    {
+        var ext = Path.GetExtension(originalName);
+        if (string.IsNullOrEmpty(ext)) ext = ".jpg";
+
+        var stem = Slug(caption);
+        if (stem.Length == 0)
+        {
+            stem = Path.GetFileNameWithoutExtension(originalName);
+            // original could still be empty or "." — never ship a blank filename
+            if (string.IsNullOrWhiteSpace(stem) || stem is "." or "..")
+                stem = "photo";
+            // still sanitize the original stem (nested paths never, but defensive)
+            foreach (var c in BadNameChars) stem = stem.Replace(c, '_');
+            stem = stem.Trim(' ', '.');
+            if (stem.Length == 0) stem = "photo";
+        }
+
+        var name = stem + ext;
+        for (var i = 1; !used.Add(name); i++)
+            name = $"{stem}_{i}{ext}";
+        return name;
     }
 
     // ---- headless self-check (dotnet run -- --selfcheck) ----
@@ -300,6 +363,30 @@ internal static class Core
 
             Check(Caption.Tidy("  A quiet street at sunset.\nExtra rambling here <end_of_turn>") == "A quiet street at sunset",
                   "caption tidy: one line, no template debris, no trailing period");
+            Check(Caption.Tidy("<start_of_turn>model\nA red barn on a hill.<end_of_turn>") == "A red barn on a hill",
+                  "caption tidy: strips chat-template wrappers");
+
+            // tidy → slug → export file name (the rename path; pure, no model)
+            Check(Slug("  A quiet street at sunset.\nExtra") == "A quiet street at sunset",
+                  "slug uses tidy: one line, no trailing period");
+            Check(Slug("foo/bar:baz*qux?") == "foo bar baz qux",
+                  "slug strips path/illegal characters");
+            Check(Slug("") == "" && ExportFileName("snap.jpg", "", new HashSet<string>()) == "snap.jpg",
+                  "empty caption keeps original base name");
+            Check(ExportFileName("", null, new HashSet<string>()) == "photo.jpg",
+                  "empty stem falls back to photo.jpg (never blank)");
+            {
+                var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var n1 = ExportFileName("a.jpg", "A quiet street at sunset", used);
+                var n2 = ExportFileName("b.jpg", "A quiet street at sunset", used);
+                var n3 = ExportFileName("c.jpg", null, used);
+                Check(n1 == "A quiet street at sunset.jpg", "caption renames export base");
+                Check(n2 == "A quiet street at sunset_1.jpg", "same caption gets _1 collision suffix");
+                Check(n3 == "c.jpg", "no caption keeps original name");
+                var destCap = Export(found[0].Path, n1, outDir, null, "", caption: "A quiet street at sunset.");
+                Check(Path.GetFileName(destCap) == "A quiet street at sunset.jpg" && File.Exists(destCap),
+                      "export wrote caption-derived file name");
+            }
 
             CaptionCheck(tmp);
 

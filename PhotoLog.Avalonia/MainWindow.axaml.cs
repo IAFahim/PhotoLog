@@ -30,12 +30,8 @@ public partial class MainWindow : Window
         OutBox.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "PhotoLog-output");
         DownloadModelBtn.Content = $"Download AI model ({Caption.TotalBytes / 1e9:0.0} GB)";
         DownloadModelBtn.IsVisible = !Caption.Ready;
-        // Mica/acrylic needs a transparent window; where the compositor can't do it (most X11),
-        // drop back to the opaque theme background so the window isn't see-through.
-        Opened += (_, _) =>
-        {
-            if (ActualTransparencyLevel == WindowTransparencyLevel.None) ClearValue(BackgroundProperty);
-        };
+        // opaque window only — Mica/TransparentBackground made the whole UI see-through on
+        // Wayland/X11 when the compositor didn't actually fill a solid backdrop
         if (string.IsNullOrWhiteSpace(initialFolder)) return;
         FolderBox.Text = initialFolder;
         Opened += async (_, _) => await Rescan(); // `photolog ~/pics` opens straight into the folder
@@ -112,22 +108,26 @@ public partial class MainWindow : Window
         {
             _items.Clear();
             UpdateCount();
+            EmptyGrid.IsVisible = true;
+            PhotoScroll.IsVisible = false;
             Status.Text = Directory.Exists(folder)
-                ? "No images in that folder."
-                : "Pick a folder with Browse, or type its path and press Enter.";
+                ? "No photos in that folder — try another path."
+                : "Choose a folder to get started.";
             return;
         }
 
         _items.Clear(); // a freshly loaded folder always starts with nothing selected
+        EmptyGrid.IsVisible = false;
+        PhotoScroll.IsVisible = true;
         foreach (var (name, path) in found)
             _items.Add(new PhotoItem { Name = name, Path = path, Tip = name });
         UpdateCount();
-        Status.Text = $"{_items.Count} image(s) loaded — rendering previews…";
+        Status.Text = $"Loading {_items.Count} photo(s)…";
 
         await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY, ct);
         if (ct.IsCancellationRequested) return;
         _rendered = (OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY);
-        Status.Text = $"{_items.Count} image(s) loaded.";
+        Status.Text = $"{_items.Count} photo(s) loaded. Select some, then Apply.";
     }
 
     static async Task RenderThumbs(IReadOnlyList<PhotoItem> items, DateOnly? date, string addr, int dx, int dy,
@@ -183,7 +183,7 @@ public partial class MainWindow : Window
     {
         _preview = null;
         PreviewImage.Source = null;
-        PreviewName.Text = "Click an image to preview it and toggle selection";
+        PreviewName.Text = "Select a photo to preview and caption it";
         CaptionBox.Text = "";
         SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = false;
     }
@@ -192,8 +192,12 @@ public partial class MainWindow : Window
 
     async void Caption_LostFocus(object? sender, RoutedEventArgs e)
     {
-        if (_preview is null || _preview.Caption == (CaptionBox.Text ?? "")) return;
-        _preview.Caption = CaptionBox.Text ?? "";
+        if (_preview is null) return;
+        // tidy so stamp + rename slug see the same one-line form as the model path
+        var cleaned = Caption.Tidy(CaptionBox.Text ?? "");
+        if (cleaned != (CaptionBox.Text ?? "")) CaptionBox.Text = cleaned;
+        if (_preview.Caption == cleaned) return;
+        _preview.Caption = cleaned;
         await RestampOne(_preview); // an edited or cleared caption changes what the stamp says
     }
 
@@ -219,16 +223,18 @@ public partial class MainWindow : Window
     {
         if (!await EnsureModel()) return;
         CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = false;
+        AiProgress.IsVisible = true;
+        AiProgress.IsIndeterminate = true;
         try
         {
             for (var i = 0; i < items.Count; i++)
             {
-                AiStatus.Text = $"Captioning {i + 1}/{items.Count}: {items[i].Name}…";
+                AiStatus.Text = $"Captioning {i + 1} of {items.Count} — {items[i].Name}…";
                 var (text, tps) = await Caption.Describe(items[i].Path, CancellationToken.None);
                 items[i].Caption = text;
                 if (_preview == items[i]) CaptionBox.Text = text;
                 await RestampOne(items[i]);
-                AiStatus.Text = $"Captioned {i + 1}/{items.Count} ({tps:0.0} tok/s)";
+                AiStatus.Text = $"Captioned {i + 1} of {items.Count} ({tps:0.0} tok/s). Exports will use this name.";
             }
         }
         catch (Exception ex)
@@ -237,6 +243,8 @@ public partial class MainWindow : Window
         }
         finally
         {
+            AiProgress.IsVisible = false;
+            AiProgress.IsIndeterminate = false;
             CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = _preview is not null && Caption.Ready;
         }
     }
@@ -245,7 +253,7 @@ public partial class MainWindow : Window
     Task<bool> EnsureModel()
     {
         if (Caption.Ready) return Task.FromResult(true);
-        AiStatus.Text = "Download the AI model first (button below) — captioning runs offline once it's in.";
+        AiStatus.Text = "Download the AI model first — captioning then runs offline on this machine.";
         return Task.FromResult(false);
     }
 
@@ -253,12 +261,19 @@ public partial class MainWindow : Window
     {
         var gb = Caption.TotalBytes / 1e9;
         DownloadModelBtn.IsEnabled = false;
+        AiProgress.IsVisible = true;
+        AiProgress.IsIndeterminate = false;
+        AiProgress.Value = 0;
         try
         {
-            AiStatus.Text = $"Downloading Gemma 4 E2B into {Caption.Dir}…";
-            var progress = new Progress<double>(f => AiStatus.Text = $"Downloading model… {f * gb:0.00} / {gb:0.0} GB ({f:P0})");
+            AiStatus.Text = $"Downloading model into {Caption.Dir}…";
+            var progress = new Progress<double>(f =>
+            {
+                AiProgress.Value = f * 100;
+                AiStatus.Text = $"Downloading model… {f * gb:0.00} / {gb:0.0} GB ({f:P0})";
+            });
             await Caption.Download(progress, CancellationToken.None);
-            AiStatus.Text = "Model ready — captioning enabled.";
+            AiStatus.Text = "Model ready — pick a photo and caption it.";
             DownloadModelBtn.IsVisible = false;
             if (_preview is not null) ShowPreview(_preview); // re-sync caption button states
         }
@@ -266,6 +281,10 @@ public partial class MainWindow : Window
         {
             AiStatus.Text = "Download failed: " + ex.Message;
             DownloadModelBtn.IsEnabled = true;
+        }
+        finally
+        {
+            AiProgress.IsVisible = false;
         }
     }
 
@@ -280,45 +299,61 @@ public partial class MainWindow : Window
         else if (_preview is not null) ShowPreview(_preview);
     }
 
-    void UpdateCount() => CountText.Text = $"{_items.Count(i => i.Selected)}/{_items.Count} selected";
+    void UpdateCount() => CountText.Text = $"{_items.Count(i => i.Selected)} of {_items.Count} selected";
 
     async void Apply_Click(object? sender, RoutedEventArgs e)
     {
         var selected = _items.Where(i => i.Selected).ToArray();
         if (selected.Length == 0)
         {
-            Result.Text = "No images selected — click some previews first.";
+            Result.Text = "Select photos in the grid first, then apply.";
             return;
         }
-        await Write(selected, "Done");
+        await Write(selected, "Exported");
     }
 
     async void SaveOne_Click(object? sender, RoutedEventArgs e)
     {
-        if (_preview is not null) await Write([_preview], "Saved");
+        // always stamp/rename this preview with current UI fields + its caption (even if unchecked)
+        if (_preview is not null) await Write([_preview], "Saved", forceSelected: true);
     }
 
-    async Task Write(IReadOnlyList<PhotoItem> items, string verb)
+    async Task Write(IReadOnlyList<PhotoItem> items, string verb, bool forceSelected = false)
     {
         var outDir = Core.Expand(OutBox.Text);
-        if (outDir.Length == 0) { Result.Text = "Set an output folder first."; return; }
+        if (outDir.Length == 0)
+        {
+            Result.Text = "Choose an output folder first.";
+            return;
+        }
         var date = OverrideDate;
         var addr = AddrBox.Text ?? "";
         var (dx, dy) = (ShadowX, ShadowY);
         ApplyBtn.IsEnabled = SaveOneBtn.IsEnabled = false;
-        Result.Text = $"Writing {items.Count} image(s) to {outDir}…";
+        Result.Text = $"Writing {items.Count} photo(s) to {outDir}…";
         try
         {
-            await Task.Run(() => Parallel.ForEach(items, i =>
+            // sequential so ExportFileName collision suffixes are stable and race-free
+            var names = await Task.Run(() =>
             {
-                var (d, a, cap) = Core.Fields(i.Selected, date, addr, i.Caption);
-                Core.Export(i.Path, i.Name, outDir, d, a, dx, dy, cap);
-            }));
-            Result.Text = $"{verb} — {items.Count} image(s) written to {outDir}";
+                var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var written = new List<string>(items.Count);
+                foreach (var i in items)
+                {
+                    var (d, a, cap) = Core.Fields(forceSelected || i.Selected, date, addr, i.Caption);
+                    // caption (when present) becomes the export base name; empty keeps original
+                    var name = Core.ExportFileName(i.Name, cap, used);
+                    Core.Export(i.Path, name, outDir, d, a, dx, dy, cap);
+                    written.Add(name);
+                }
+                return written;
+            });
+            var sample = names.Count == 1 ? names[0] : $"{names[0]} (+{names.Count - 1} more)";
+            Result.Text = $"{verb} — {names.Count} photo(s) → {outDir}  ·  e.g. {sample}";
         }
         catch (Exception ex)
         {
-            Result.Text = "Error: " + ex.Message;
+            Result.Text = "Could not write files: " + ex.Message;
         }
         finally
         {
