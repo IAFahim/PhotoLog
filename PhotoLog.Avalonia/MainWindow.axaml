@@ -279,37 +279,41 @@
             <Image x:Name="PreviewImage" Stretch="Uniform"/>
           </Grid>
 
-          <!-- Stamp controls: full-width stacked rows (no side-by-side Date|Time collision). -->
+          <!-- Date|Time share one row (equal columns). Address is multi-line again. -->
           <StackPanel Grid.Row="1" Spacing="8" Margin="0,8,0,0">
             <TextBlock x:Name="PreviewName" Classes="hint" TextAlignment="Left"
                        TextTrimming="CharacterEllipsis" MaxLines="1" IsVisible="False" Text=""/>
 
-            <StackPanel Spacing="2">
-              <TextBlock Classes="label" Text="Date" Margin="0,0,0,2"/>
-              <Grid ColumnDefinitions="*,Auto">
-                <CalendarDatePicker x:Name="DatePart" MinHeight="32" HorizontalAlignment="Stretch"
-                                    SelectedDateChanged="DateChanged"/>
-                <Button Grid.Column="1" Classes="quiet" Content="×" Padding="10,4" Margin="6,0,0,0"
-                        Click="ClearDate_Click" ToolTip.Tip="Clear date override"/>
-              </Grid>
-            </StackPanel>
-
-            <StackPanel Spacing="2">
-              <TextBlock Classes="label" Text="Time" Margin="0,0,0,2"/>
-              <Grid ColumnDefinitions="*,Auto">
-                <TimePicker x:Name="TimePart" MinHeight="32" HorizontalAlignment="Stretch"
-                            ClockIdentifier="12HourClock" UseSeconds="True"
-                            SelectedTimeChanged="TimeChanged"/>
-                <Button Grid.Column="1" Classes="quiet" Content="×" Padding="10,4" Margin="6,0,0,0"
-                        Click="ClearTime_Click" ToolTip.Tip="Clear time override"/>
-              </Grid>
-            </StackPanel>
+            <Grid ColumnDefinitions="*,8,*">
+              <StackPanel Spacing="2">
+                <TextBlock Classes="label" Text="Date" Margin="0,0,0,2"/>
+                <Grid ColumnDefinitions="*,Auto">
+                  <CalendarDatePicker x:Name="DatePart" MinHeight="32" MinWidth="0"
+                                      HorizontalAlignment="Stretch"
+                                      SelectedDateChanged="DateChanged"/>
+                  <Button Grid.Column="1" Classes="quiet" Content="×" Padding="8,4" Margin="4,0,0,0"
+                          Click="ClearDate_Click" ToolTip.Tip="Clear date override"/>
+                </Grid>
+              </StackPanel>
+              <StackPanel Grid.Column="2" Spacing="2">
+                <TextBlock Classes="label" Text="Time" Margin="0,0,0,2"/>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TimePicker x:Name="TimePart" MinHeight="32" MinWidth="0"
+                              HorizontalAlignment="Stretch"
+                              ClockIdentifier="12HourClock" UseSeconds="True"
+                              SelectedTimeChanged="TimeChanged"/>
+                  <Button Grid.Column="1" Classes="quiet" Content="×" Padding="8,4" Margin="4,0,0,0"
+                          Click="ClearTime_Click" ToolTip.Tip="Clear time override"/>
+                </Grid>
+              </StackPanel>
+            </Grid>
 
             <StackPanel Spacing="2">
               <TextBlock Classes="label" Text="Address" Margin="0,0,0,2"/>
-              <TextBox x:Name="AddrBox" AcceptsReturn="False" MinHeight="32"
-                       Padding="8,4" LostFocus="Addr_LostFocus"
-                       PlaceholderText="Optional (selected only)"/>
+              <TextBox x:Name="AddrBox" AcceptsReturn="True" TextWrapping="Wrap"
+                       MinHeight="64" MaxHeight="110" Padding="8,6"
+                       LostFocus="Addr_LostFocus"
+                       PlaceholderText="Optional address lines (selected photos only)"/>
             </StackPanel>
 
             <StackPanel Spacing="2"
