@@ -159,12 +159,12 @@
                 <Button Classes="quiet" Content="Select none" Padding="12,6" Click="SelectNone_Click"/>
               </StackPanel>
             </Grid>
-            <!-- AI select: vision model picks photos that match a category (needs model download). -->
+            <!-- AI select: YOLO26n object detect (~10 MB) — fast; Gemma is caption-only. -->
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Classes="hint" Text="AI select" VerticalAlignment="Center"
-                         ToolTip.Tip="Uses local Gemma 4 E2B vision (~3.4 GB). Smallest vision-capable Gemma pack we ship."/>
+                         ToolTip.Tip="Uses local YOLO26n (~10 MB ONNX, COCO objects). Auto-downloads on first use. Much faster than Gemma for multi-select."/>
               <ComboBox x:Name="AiCategoryBox" Width="140" SelectedIndex="0"
-                        ToolTip.Tip="What to look for in each photo">
+                        ToolTip.Tip="COCO object groups YOLO can detect (furniture, people, animals, …)">
                 <ComboBoxItem Content="Furniture"/>
                 <ComboBoxItem Content="Outdoors"/>
                 <ComboBoxItem Content="People"/>
@@ -176,11 +176,11 @@
                 <ComboBoxItem Content="Text / documents"/>
               </ComboBox>
               <TextBox x:Name="AiCustomBox" Width="140"
-                       PlaceholderText="or custom…"
-                       ToolTip.Tip="Custom category overrides the dropdown when non-empty"/>
+                       PlaceholderText="or COCO label…"
+                       ToolTip.Tip="Custom overrides the dropdown — use a COCO class name (dog, chair, car, …)"/>
               <Button x:Name="AiSelectBtn" Classes="quiet" Content="AI select"
                       Padding="12,6" Click="AiSelect_Click"
-                      ToolTip.Tip="Scan every photo with the local AI and select matches. Needs the model."/>
+                      ToolTip.Tip="Scan every photo with YOLO and select matches. First run downloads ~10 MB."/>
             </StackPanel>
           </StackPanel>
 
@@ -358,8 +358,9 @@
           </Grid>
 
           <Button Grid.Row="5" x:Name="DownloadModelBtn" Classes="quiet" Margin="0,8,0,0"
-                  Content="Download AI model" HorizontalAlignment="Stretch"
-                  Click="DownloadModel_Click"/>
+                  Content="Download caption model" HorizontalAlignment="Stretch"
+                  Click="DownloadModel_Click"
+                  ToolTip.Tip="Gemma 4 E2B (~3.4 GB) for Caption only. AI select uses YOLO26n (~10 MB) and auto-downloads."/>
 
           <StackPanel Grid.Row="6" Margin="0,10,0,0" Spacing="6">
             <ProgressBar x:Name="AiProgress" Minimum="0" Maximum="100" IsVisible="False"/>

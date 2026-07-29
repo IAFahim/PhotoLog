@@ -12,9 +12,10 @@ using LLama.Sampling;
 
 namespace PhotoLog.Avalonia;
 
-/// Opt-in local vision: Gemma 4 E2B via llama.cpp (CPU). Caption + AI select.
+/// Opt-in local vision captions: Gemma 4 E2B via llama.cpp (CPU).
 /// E2B is the smallest Gemma 4 that still does image understanding; Q4_0 + Q8 mmproj
-/// is the leanest practical pack (~3.4 GB). Text-only smaller models cannot see photos.
+/// is the leanest practical pack (~3.4 GB). AI multi-select uses YoloPick (YOLO26n) instead —
+/// Gemma yes/no is too slow for scanning a whole library.
 /// Nothing is bundled — GGUFs download on first use into the user's data dir.
 internal static class Caption
 {

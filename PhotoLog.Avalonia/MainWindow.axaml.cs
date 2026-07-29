@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         PhotoGrid.ItemsSource = _days;
-        DownloadModelBtn.Content = $"Download AI model ({Caption.TotalBytes / 1e9:0.0} GB)";
+        DownloadModelBtn.Content = $"Download caption model ({Caption.TotalBytes / 1e9:0.0} GB)";
         DownloadModelBtn.IsVisible = !Caption.Ready;
 
         ApplySettings(Settings.Load());
@@ -390,14 +390,14 @@ public partial class MainWindow : Window
         SyncCaptionButtons();
     }
 
-    /// Caption (one) needs a preview; Caption selected needs any selection + model ready.
+    /// Caption needs Gemma; AI select uses YOLO nano (~10 MB) and only needs a photo list.
     void SyncCaptionButtons()
     {
         var ready = Caption.Ready;
         CaptionBtn.IsEnabled = ready && _preview is not null;
         CaptionAllBtn.IsEnabled = ready && _items.Any(i => i.Selected);
         if (AiSelectBtn is not null)
-            AiSelectBtn.IsEnabled = ready && _items.Count > 0;
+            AiSelectBtn.IsEnabled = _items.Count > 0;
     }
 
     string AiCategory
@@ -414,7 +414,7 @@ public partial class MainWindow : Window
     async void AiSelect_Click(object? sender, RoutedEventArgs e)
     {
         if (_items.Count == 0) return;
-        if (!await EnsureModel()) return;
+        if (!await EnsureYolo()) return;
         var cat = AiCategory;
         AiSelectBtn.IsEnabled = CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = false;
         AiProgress.IsVisible = true;
@@ -426,18 +426,18 @@ public partial class MainWindow : Window
             for (var i = 0; i < _items.Count; i++)
             {
                 var item = _items[i];
-                AiStatus.Text = $"AI select “{cat}”: {i + 1} of {_items.Count} — {item.Name}…";
+                AiStatus.Text = $"AI select “{cat}” (YOLO): {i + 1} of {_items.Count} — {item.Name}…";
                 AiProgress.Value = 100.0 * i / _items.Count;
-                // Matches runs on the thread pool (same as Caption) so the UI does not freeze.
-                var yes = await Caption.Matches(item.Path, cat, CancellationToken.None);
+                // YOLO runs on the thread pool so the UI stays responsive.
+                var yes = await YoloPick.Matches(item.Path, cat, CancellationToken.None);
                 item.Selected = yes;
                 if (yes) hit++;
             }
             AiProgress.Value = 100;
             UpdateCount();
             AiStatus.Text = hit == 0
-                ? $"AI select “{cat}”: no matches."
-                : $"AI select “{cat}”: selected {hit} of {_items.Count}.";
+                ? $"AI select “{cat}”: no matches (YOLO COCO objects)."
+                : $"AI select “{cat}”: selected {hit} of {_items.Count} (YOLO).";
             if (HasOverride) await Refresh();
         }
         catch (Exception ex)
@@ -448,6 +448,34 @@ public partial class MainWindow : Window
         {
             AiProgress.IsVisible = false;
             SyncCaptionButtons();
+        }
+    }
+
+    /// Ensure YOLO26n is on disk (~10 MB). Auto-downloads on first AI select.
+    async Task<bool> EnsureYolo()
+    {
+        if (YoloPick.Ready) return true;
+        AiProgress.IsVisible = true;
+        AiProgress.IsIndeterminate = false;
+        AiProgress.Value = 0;
+        try
+        {
+            var mb = YoloPick.TotalBytes / 1e6;
+            AiStatus.Text = $"Downloading YOLO26n (~{mb:0} MB) for fast AI select…";
+            var progress = new Progress<double>(f =>
+            {
+                AiProgress.Value = f * 100;
+                AiStatus.Text = $"Downloading YOLO26n… {f * mb:0.0} / {mb:0} MB ({f:P0})";
+            });
+            await YoloPick.Download(progress, CancellationToken.None);
+            AiStatus.Text = "YOLO ready — scanning…";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AiStatus.Text = "YOLO download failed: " + ex.Message;
+            AiProgress.IsVisible = false;
+            return false;
         }
     }
 
@@ -536,7 +564,7 @@ public partial class MainWindow : Window
                 AiStatus.Text = $"Downloading model… {f * gb:0.00} / {gb:0.0} GB ({f:P0})";
             });
             await Caption.Download(progress, CancellationToken.None);
-            AiStatus.Text = "Model ready — pick a photo, or multi-select and Caption selected.";
+            AiStatus.Text = "Caption model ready — pick a photo, or multi-select and Caption selected. (AI select uses YOLO, no Gemma needed.)";
             DownloadModelBtn.IsVisible = false;
             SyncCaptionButtons();
             if (_preview is not null) ShowPreview(_preview);
