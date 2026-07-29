@@ -671,7 +671,7 @@ public partial class MainWindow : Window
         var n = _selectedList.Count;
         SelectedListHost.IsVisible = n > 0;
         if (SelectedListHeader is not null)
-            SelectedListHeader.Text = n == 0 ? "Selected" : $"{n}";
+            SelectedListHeader.Text = n == 0 ? "0" : $"{n} selected";
     }
 
     void SelectedListItem_Click(object? sender, PointerPressedEventArgs e)
