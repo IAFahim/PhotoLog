@@ -57,8 +57,8 @@
     <!-- Options: 2 lines — (1) Date | Time | Drop shadow  (2) Address -->
     <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,12">
       <StackPanel Spacing="12">
-        <!-- Line 1: three columns, labels above, controls on one row each -->
-        <Grid ColumnDefinitions="*,Auto,*,Auto,*">
+        <!-- Line 1: Date | Time sized to content; Drop shadow takes remaining width (no clip) -->
+        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*">
           <StackPanel Margin="0,0,10,0">
             <TextBlock Classes="label" Text="Date"/>
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -84,35 +84,41 @@
           <StackPanel Grid.Column="4" Margin="10,0,0,0"
                       ToolTip.Tip="Weight + freeform offset (+X right, −Y up). Saved between sessions.">
             <TextBlock Classes="label" Text="Drop shadow"/>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <ComboBox x:Name="DropBox" Width="92" SelectedIndex="1" SelectionChanged="DropChanged">
+            <WrapPanel Orientation="Horizontal" ItemHeight="36">
+              <ComboBox x:Name="DropBox" Width="96" MinHeight="36" Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        SelectedIndex="1" SelectionChanged="DropChanged">
                 <ComboBoxItem Content="Off" Tag="Off"/>
                 <ComboBoxItem Content="Light" Tag="Light"/>
                 <ComboBoxItem Content="Heavy" Tag="Heavy"/>
               </ComboBox>
-              <TextBlock Text="X" Classes="hint" VerticalAlignment="Center" Margin="4,0,0,0"/>
+              <TextBlock Text="X" Classes="hint" VerticalAlignment="Center" Margin="0,0,4,0"/>
               <NumericUpDown x:Name="ShadowXBox" Value="1" Minimum="-20" Maximum="20"
                              Increment="1" FormatString="0"
-                             Width="118" MinWidth="118" Height="34"
+                             Width="100" MinWidth="100" MinHeight="36" Height="36"
+                             Margin="0,0,8,0" VerticalAlignment="Center"
                              HorizontalContentAlignment="Center"
                              ShowButtonSpinner="True" AllowSpin="True"
                              ValueChanged="OffsetChanged"/>
-              <TextBlock Text="Y" Classes="hint" VerticalAlignment="Center"/>
+              <TextBlock Text="Y" Classes="hint" VerticalAlignment="Center" Margin="0,0,4,0"/>
               <NumericUpDown x:Name="ShadowYBox" Value="-1" Minimum="-20" Maximum="20"
                              Increment="1" FormatString="0"
-                             Width="118" MinWidth="118" Height="34"
+                             Width="100" MinWidth="100" MinHeight="36" Height="36"
+                             Margin="0,0,8,0" VerticalAlignment="Center"
                              HorizontalContentAlignment="Center"
                              ShowButtonSpinner="True" AllowSpin="True"
                              ValueChanged="OffsetChanged"/>
-              <Button Classes="quiet" Content="Refresh" Padding="12,6" Click="Refresh_Click"/>
-            </StackPanel>
+              <Button Classes="quiet" Content="Refresh" Padding="12,8" MinHeight="36"
+                      VerticalAlignment="Center" Click="Refresh_Click"/>
+            </WrapPanel>
           </StackPanel>
         </Grid>
 
-        <!-- Line 2: address only -->
+        <!-- Line 2: multi-line address -->
         <StackPanel Spacing="6">
           <TextBlock Classes="label" Text="Address (optional)"/>
-          <TextBox x:Name="AddrBox" AcceptsReturn="False" MinHeight="36"
+          <TextBox x:Name="AddrBox" AcceptsReturn="True" TextWrapping="Wrap"
+                   MinHeight="64" MaxHeight="120"
                    LostFocus="Addr_LostFocus"
                    PlaceholderText="Optional address lines (applied to selected photos only)"/>
         </StackPanel>
@@ -262,6 +268,11 @@
                                         Background="{DynamicResource BrushSelectPlate}"
                                         BoxShadow="0 2 12 0 #20000000"
                                         IsVisible="{Binding Selected}"/>
+                                <!-- left accent ribbon when selected (shows place in the scroll strip) -->
+                                <Border Width="4" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                                        Margin="0,4" CornerRadius="2"
+                                        Background="{DynamicResource BrushSelect}"
+                                        IsVisible="{Binding Selected}" ZIndex="5"/>
                                 <!-- frame matches image aspect → Uniform shows everything; tick on photo -->
                                 <Border Margin="{Binding ThumbMargin}" CornerRadius="8"
                                         ClipToBounds="True" Background="{DynamicResource BrushThumbBg}">
@@ -327,7 +338,7 @@
 
           <TextBlock Grid.Row="2" x:Name="PreviewName" Classes="hint" Margin="0,10,0,0"
                      TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                     MaxLines="2" Text="Select a photo to preview and add caption"/>
+                     MaxLines="2" IsVisible="False" Text=""/>
 
           <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
             <TextBox x:Name="CaptionBox"

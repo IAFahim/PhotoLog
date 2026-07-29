@@ -141,8 +141,10 @@ public partial class MainWindow : Window
 
     async void Browse_Click(object? sender, RoutedEventArgs e)
     {
-        var picked = await StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions { Title = "Open photo folder", AllowMultiple = false });
+        var opts = new FolderPickerOpenOptions { Title = "Open photo folder", AllowMultiple = false };
+        if (await TryFolder(FolderBox.Text) is { } start)
+            opts.SuggestedStartLocation = start;
+        var picked = await StorageProvider.OpenFolderPickerAsync(opts);
         if (picked.Count == 0) return;
         FolderBox.Text = picked[0].TryGetLocalPath() ?? picked[0].Path.LocalPath;
         Persist();
@@ -201,11 +203,23 @@ public partial class MainWindow : Window
 
     async void OutBrowse_Click(object? sender, RoutedEventArgs e)
     {
-        var picked = await StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions { Title = "Pick output folder", AllowMultiple = false });
+        var opts = new FolderPickerOpenOptions { Title = "Pick output folder", AllowMultiple = false };
+        // Open the picker at the path already in the box (e.g. ~/PhotoLog-output), not home.
+        if (await TryFolder(OutBox.Text) is { } start)
+            opts.SuggestedStartLocation = start;
+        var picked = await StorageProvider.OpenFolderPickerAsync(opts);
         if (picked.Count == 0) return;
         OutBox.Text = picked[0].TryGetLocalPath() ?? picked[0].Path.LocalPath;
         Persist();
+    }
+
+    /// Resolve a typed/expanded path to an IStorageFolder for the picker start location.
+    async Task<IStorageFolder?> TryFolder(string? path)
+    {
+        var p = Core.Expand(path);
+        if (p.Length == 0 || !Directory.Exists(p)) return null;
+        try { return await StorageProvider.TryGetFolderFromPathAsync(p); }
+        catch { return null; }
     }
 
     void OutBox_LostFocus(object? sender, RoutedEventArgs e) => Persist();
@@ -306,12 +320,26 @@ public partial class MainWindow : Window
 
     bool HasOverride => OverrideDate is not null || OverrideTime is not null || !string.IsNullOrWhiteSpace(AddrBox.Text);
 
+    /// Address/Caption should not keep keyboard focus after you click the library.
+    void ReleaseTextFocus()
+    {
+        // Move focus off TextBox so further keys don't keep typing into Address.
+        if (TopLevel.GetTopLevel(this)?.FocusManager is { } fm)
+            fm.Focus(null);
+        else
+            Focus();
+    }
+
     async void Cell_Click(object? sender, PointerPressedEventArgs e)
     {
         if ((sender as Control)?.DataContext is not PhotoItem item) return;
+        ReleaseTextFocus();
         item.Selected = !item.Selected;
         UpdateCount();
         ShowPreview(item);
+        // scroll ribbon: keep the tapped cell in view (selection “line” is the purple bar on the cell)
+        if (sender is Control c)
+            c.BringIntoView();
         if (HasOverride || item.Caption.Length > 0) await RestampOne(item);
     }
 
@@ -320,9 +348,12 @@ public partial class MainWindow : Window
     {
         if ((sender as Control)?.DataContext is not DayGroup day) return;
         e.Handled = true;
+        ReleaseTextFocus();
         var select = !day.AllSelected; // none/partial → all; all → none
         foreach (var p in day.Photos) p.Selected = select;
         UpdateCount();
+        if (sender is Control c)
+            c.BringIntoView();
         if (HasOverride)
         {
             // only restamp this day — overrides paint only on selected
@@ -337,7 +368,10 @@ public partial class MainWindow : Window
     {
         _preview = item;
         PreviewImage.Source = item.Thumb;
-        PreviewEmpty.IsVisible = item.Thumb is null;
+        var empty = item.Thumb is null;
+        PreviewEmpty.IsVisible = empty;
+        // Name only when a real preview is up — avoids stacking under the empty-state card
+        PreviewName.IsVisible = !empty;
         PreviewName.Text = item.Name + (item.Selected ? "  [selected ✓]" : "  [not selected]");
         CaptionBox.Text = item.Caption;
         SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = true;
@@ -349,7 +383,8 @@ public partial class MainWindow : Window
         _preview = null;
         PreviewImage.Source = null;
         PreviewEmpty.IsVisible = true;
-        PreviewName.Text = "Select a photo to preview and add caption";
+        PreviewName.IsVisible = false;
+        PreviewName.Text = "";
         CaptionBox.Text = "";
         SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = false;
         SyncCaptionButtons();
@@ -522,6 +557,7 @@ public partial class MainWindow : Window
 
     async Task SetAll(bool value)
     {
+        ReleaseTextFocus();
         foreach (var i in _items) i.Selected = value;
         UpdateCount();
         if (HasOverride) await Refresh();
