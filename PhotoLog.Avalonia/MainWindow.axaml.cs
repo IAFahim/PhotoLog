@@ -36,7 +36,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         PhotoGrid.ItemsSource = _days;
         if (SelectedList is not null) SelectedList.ItemsSource = _selectedList;
-        DownloadModelBtn.Content = $"Download caption model ({Caption.TotalBytes / 1e9:0.0} GB)";
+        DownloadModelBtn.Content = $"Caption model ({Caption.TotalBytes / 1e9:0.0} GB)";
         DownloadModelBtn.IsVisible = !Caption.Ready;
         // COCO groups from YoloPick — every class is reachable; no fake screenshot/doc options
         if (AiCategoryBox is not null)
@@ -92,7 +92,7 @@ public partial class MainWindow : Window
     {
         if (ThemeBtn is null) return;
         // button shows the mode you switch *to*
-        ThemeBtn.Content = _theme == "Dark" ? "Light mode" : "Dark mode";
+        ThemeBtn.Content = _theme == "Dark" ? "Light" : "Dark";
     }
 
     void Theme_Click(object? sender, RoutedEventArgs e)
@@ -309,7 +309,7 @@ public partial class MainWindow : Window
                            ShadowX, ShadowY, ct);
         if (ct.IsCancellationRequested) return;
         _rendered = (OverrideDate, OverrideTime, AddrBox.Text ?? "", CurrentDrop, ShadowX, ShadowY);
-        Status.Text = $"{_items.Count} photo(s) loaded. Select some, then Apply.";
+        Status.Text = $"{_items.Count} loaded";
         Persist(); // remember last folder once a scan succeeds
         ScheduleSelectionMap(); // thumbs sized → map positions valid
     }
@@ -664,7 +664,7 @@ public partial class MainWindow : Window
         var n = _selectedList.Count;
         SelectedListHost.IsVisible = n > 0;
         if (SelectedListHeader is not null)
-            SelectedListHeader.Text = n == 0 ? "Selected" : $"Selected ({n}) — click to preview";
+            SelectedListHeader.Text = n == 0 ? "Selected" : $"Selected ({n})";
     }
 
     void SelectedListItem_Click(object? sender, PointerPressedEventArgs e)
