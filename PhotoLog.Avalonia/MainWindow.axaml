@@ -63,42 +63,41 @@
                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                Text=""/>
 
-    <!-- Selected strip: horizontal under the main body (wireframe “Selected horizontal view”) -->
+    <!-- Selected filmstrip — quiet thumbs, no loud purple frames on every cell -->
     <Border DockPanel.Dock="Bottom" x:Name="SelectedListHost" IsVisible="False"
-            Classes="card" Margin="0,8,0,0" Padding="8,6" MinHeight="72" MaxHeight="88">
-      <DockPanel>
-        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="6"
-                    VerticalAlignment="Center" Margin="0,0,10,0">
-          <TextBlock x:Name="SelectedListHeader" Classes="label" VerticalAlignment="Center"
-                     Text="Selected"/>
-          <Button x:Name="PrevSelBtn2" Classes="quiet" Content="◀" Padding="8,4"
-                  IsEnabled="False" Click="PrevSelected_Click"/>
-          <Button x:Name="NextSelBtn2" Classes="quiet" Content="▶" Padding="8,4"
-                  IsEnabled="False" Click="NextSelected_Click"/>
+            Margin="0,6,0,0" Padding="0,4" Background="Transparent">
+      <DockPanel LastChildFill="True">
+        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4"
+                    VerticalAlignment="Center" Margin="2,0,10,0">
+          <TextBlock x:Name="SelectedListHeader" Classes="hint" VerticalAlignment="Center"
+                     FontWeight="SemiBold" Text="Selected"/>
+          <Button x:Name="PrevSelBtn2" Classes="quiet" Content="‹" Padding="6,2" FontSize="16"
+                  IsEnabled="False" Click="PrevSelected_Click" MinHeight="28"/>
+          <Button x:Name="NextSelBtn2" Classes="quiet" Content="›" Padding="6,2" FontSize="16"
+                  IsEnabled="False" Click="NextSelected_Click" MinHeight="28"/>
         </StackPanel>
-        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                      AllowAutoHide="True">
           <ItemsControl x:Name="SelectedList">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal" Spacing="6"/>
+                <StackPanel Orientation="Horizontal" Spacing="4"/>
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="local:PhotoItem">
-                <Border Cursor="Hand" Width="64" Height="64" CornerRadius="8"
-                        ClipToBounds="True" BorderThickness="2"
-                        BorderBrush="{DynamicResource BrushSelect}"
+                <!-- Soft filmstrip cell: image only + thin bottom accent, no badge frames -->
+                <Border Cursor="Hand" Width="56" Height="56" CornerRadius="6"
+                        ClipToBounds="True" BorderThickness="1"
+                        BorderBrush="{DynamicResource BrushBorder}"
                         Background="{DynamicResource BrushThumbBg}"
                         PointerPressed="SelectedListItem_Click"
                         ToolTip.Tip="{Binding Name}">
                   <Panel>
-                    <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
-                    <Border Width="16" Height="16" Margin="3" CornerRadius="8"
-                            HorizontalAlignment="Right" VerticalAlignment="Top"
-                            Background="{DynamicResource BrushSelect}">
-                      <TextBlock Text="✓" FontSize="10" Foreground="White"
-                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
+                    <Image Source="{Binding Thumb}" Stretch="UniformToFill"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Border Height="2" VerticalAlignment="Bottom"
+                            Background="{DynamicResource BrushSelect}" Opacity="0.85"/>
                   </Panel>
                 </Border>
               </DataTemplate>
@@ -161,8 +160,10 @@
             </Border>
 
             <Grid x:Name="LibScrollHost" IsVisible="False" ColumnDefinitions="*,Auto">
+              <!-- Vertical scrollbar Hidden when selection map is on (one track only). -->
               <ScrollViewer x:Name="PhotoScroll"
                             HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto"
                             ScrollChanged="PhotoScroll_ScrollChanged">
                 <ItemsControl x:Name="PhotoGrid">
                   <ItemsControl.ItemTemplate>
@@ -238,21 +239,17 @@
                 </ItemsControl>
               </ScrollViewer>
 
-              <!-- Overview ruler -->
-              <Border Grid.Column="1" x:Name="SelectOverview" Width="18" Margin="4,0,0,0"
+              <!-- Selection ticks only (not a second scrollbar). Native bar hides while this is on. -->
+              <Border Grid.Column="1" x:Name="SelectOverview" Width="10" Margin="2,0,0,0"
                       IsVisible="False" Cursor="Hand" ClipToBounds="True"
-                      CornerRadius="6" BorderThickness="1"
-                      BorderBrush="{DynamicResource BrushSelect}"
-                      Background="{DynamicResource BrushField}"
-                      ToolTip.Tip="Selection map — click a tick to jump"
+                      Background="Transparent"
+                      ToolTip.Tip="Selection marks — click to jump"
                       PointerPressed="SelectOverview_Pressed"
                       SizeChanged="SelectOverview_SizeChanged">
                 <Panel>
-                  <Border Margin="4,2" CornerRadius="2"
-                          Background="{DynamicResource BrushBorder}" Opacity="0.4"/>
-                  <Border x:Name="SelectViewport" Margin="3,0" HorizontalAlignment="Stretch"
-                          Height="20" VerticalAlignment="Top" CornerRadius="2"
-                          Background="{DynamicResource BrushText}" Opacity="0.12"
+                  <Border x:Name="SelectViewport" Margin="1,0" HorizontalAlignment="Stretch"
+                          Height="16" VerticalAlignment="Top" CornerRadius="2"
+                          Background="{DynamicResource BrushMuted}" Opacity="0.25"
                           IsHitTestVisible="False"/>
                   <Canvas x:Name="SelectMarks" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                 </Panel>

@@ -648,7 +648,13 @@ public partial class MainWindow : Window
         if (NextSelBtn is not null) NextSelBtn.IsEnabled = sel > 0;
         if (PrevSelBtn2 is not null) PrevSelBtn2.IsEnabled = sel > 0;
         if (NextSelBtn2 is not null) NextSelBtn2.IsEnabled = sel > 0;
-        if (SelectOverview is not null) SelectOverview.IsVisible = mode && LibScrollHost.IsVisible;
+        // One scroll track: hide system bar while the selection-mark rail is showing.
+        var mapOn = mode && LibScrollHost is { IsVisible: true };
+        if (SelectOverview is not null) SelectOverview.IsVisible = mapOn;
+        if (PhotoScroll is not null)
+            PhotoScroll.VerticalScrollBarVisibility = mapOn
+                ? Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden
+                : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
         RebuildSelectedList();
         SyncCaptionButtons();
         ScheduleSelectionMap();
@@ -664,7 +670,7 @@ public partial class MainWindow : Window
         var n = _selectedList.Count;
         SelectedListHost.IsVisible = n > 0;
         if (SelectedListHeader is not null)
-            SelectedListHeader.Text = n == 0 ? "Selected" : $"Selected ({n})";
+            SelectedListHeader.Text = n == 0 ? "Selected" : $"{n}";
     }
 
     void SelectedListItem_Click(object? sender, PointerPressedEventArgs e)
@@ -742,17 +748,17 @@ public partial class MainWindow : Window
                 frac = (idx + 0.5) / n;
             }
 
-            var markH = Math.Max(4, Math.Min(12, railH / Math.Max(8, selected.Count * 0.5)));
+            var markH = Math.Max(3, Math.Min(8, railH / Math.Max(10, selected.Count)));
             var top = Math.Clamp(frac * railH - markH / 2, 0, Math.Max(0, railH - markH));
             var mark = new Border
             {
-                Width = Math.Max(10, railW - 4),
+                Width = Math.Max(6, railW - 2),
                 Height = markH,
-                CornerRadius = new CornerRadius(2),
+                CornerRadius = new CornerRadius(1),
                 Background = brush,
                 Tag = item,
                 Cursor = new Cursor(StandardCursorType.Hand),
-                Opacity = 0.95,
+                Opacity = 0.9,
             };
             ToolTip.SetTip(mark, item.Name);
             Canvas.SetLeft(mark, 1);
