@@ -9,8 +9,7 @@
         MinWidth="900" MinHeight="600"
         Title="PhotoLog">
 
-  <!-- hierarchy: folder → options → grid/preview → export.
-       Sentence-case labels, one accent (Apply/Load), status next to actions. -->
+  <!-- hierarchy: folder → options → day-segmented grid/preview → export. -->
   <DockPanel Margin="20">
 
     <!-- header: title + folder load -->
@@ -18,76 +17,105 @@
       <StackPanel Spacing="2">
         <TextBlock Text="PhotoLog" FontSize="24" FontWeight="SemiBold"/>
         <TextBlock Classes="hint" FontSize="13" TextWrapping="Wrap"
-                   Text="Stamp date, optional address, and a caption on photos. Captioned exports are renamed from that caption."/>
+                   Text="Stamp date/time, optional address, and a caption. Captioned exports are renamed from that caption. Overrides also rewrite EXIF on the copy."/>
       </StackPanel>
 
-      <Grid ColumnDefinitions="*,Auto,Auto">
+      <!-- One open action: Browse picks + loads. Typed path + Enter also loads (no second button). -->
+      <Grid ColumnDefinitions="*,Auto">
         <TextBox x:Name="FolderBox"
-                 PlaceholderText="Folder with photos"
-                 ToolTip.Tip="Path to a folder of photos on this machine"
+                 PlaceholderText="Folder with photos — or type a path and press Enter"
+                 ToolTip.Tip="Path to a folder of photos on this machine. Press Enter to load."
                  KeyDown="Folder_KeyDown"/>
-        <Button Grid.Column="1" Content="Browse…" Margin="8,0,0,0"
-                ToolTip.Tip="Choose a photo folder"
+        <Button Grid.Column="1" Content="Open folder…" Margin="8,0,0,0" Classes="accent"
+                ToolTip.Tip="Pick a folder and load its photos"
                 Click="Browse_Click"/>
-        <Button Grid.Column="2" Content="Load folder" Margin="8,0,0,0" Classes="accent"
-                Click="Load_Click"/>
       </Grid>
       <TextBlock x:Name="Status" Classes="hint" TextWrapping="Wrap"
-                 Text="Choose a folder to get started."/>
+                 Text="Open a folder of photos to get started."/>
 
       <Border Classes="card">
-        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" RowDefinitions="Auto">
-          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-            <TextBlock Classes="label" Text="Date override"/>
-            <CalendarDatePicker x:Name="DatePart" Width="150"
-                                ToolTip.Tip="Leave empty to use each photo’s own date. A picked date replaces only the day — the time stays each photo’s own."
-                                SelectedDateChanged="DateChanged"/>
-          </StackPanel>
-          <Button Grid.Column="1" Content="Clear date" Margin="8,0,0,0" VerticalAlignment="Center"
-                  ToolTip.Tip="Use each photo’s own date again"
-                  Click="ClearDate_Click"/>
-          <TextBlock Grid.Column="2" Classes="label" Text="Address" Margin="20,6,8,0"
-                     VerticalAlignment="Top"/>
-          <TextBox Grid.Column="3" x:Name="AddrBox" AcceptsReturn="True" MinHeight="64" MaxHeight="96"
-                   LostFocus="Addr_LostFocus"
-                   PlaceholderText="Optional address lines"/>
-          <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" Margin="16,0,0,0"
-                      VerticalAlignment="Center"
-                      ToolTip.Tip="Shadow offset for the stamp. +X is right, −Y is up. 0/0 turns the shadow off.">
-            <TextBlock Classes="label" Text="Shadow X"/>
-            <NumericUpDown x:Name="ShadowXBox" Value="1" Increment="1" FormatString="0" Width="100"
-                           ValueChanged="StyleChanged"/>
-            <TextBlock Classes="label" Text="Y" Margin="4,0,0,0"/>
-            <NumericUpDown x:Name="ShadowYBox" Value="-1" Increment="1" FormatString="0" Width="100"
-                           ValueChanged="StyleChanged"/>
-          </StackPanel>
-          <Button Grid.Column="5" Content="Refresh previews" Margin="12,0,0,0" VerticalAlignment="Center"
-                  Click="Refresh_Click"/>
-        </Grid>
+        <StackPanel Spacing="10">
+          <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,4" VerticalAlignment="Center">
+              <TextBlock Classes="label" Text="Date" VerticalAlignment="Center"/>
+              <CalendarDatePicker x:Name="DatePart" Width="150"
+                                  ToolTip.Tip="Leave empty to keep each photo’s day. Picked date replaces only the day."
+                                  SelectedDateChanged="DateChanged"/>
+              <Button Content="Clear" VerticalAlignment="Center"
+                      ToolTip.Tip="Use each photo’s own date again"
+                      Click="ClearDate_Click"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,4" VerticalAlignment="Center">
+              <TextBlock Classes="label" Text="Time" VerticalAlignment="Center"/>
+              <TimePicker x:Name="TimePart" Width="150" ClockIdentifier="12HourClock" UseSeconds="True"
+                          ToolTip.Tip="Leave empty to keep each photo’s clock. Picked time replaces only the time."
+                          SelectedTimeChanged="TimeChanged"/>
+              <Button Content="Clear" VerticalAlignment="Center"
+                      ToolTip.Tip="Use each photo’s own time again"
+                      Click="ClearTime_Click"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,12,4" VerticalAlignment="Center"
+                        ToolTip.Tip="Weight: Off / Light (one twin) / Heavy (thicker multi-pass). Offset is freeform — +X right, −Y up. All saved between sessions.">
+              <TextBlock Classes="label" Text="Drop shadow" VerticalAlignment="Center"/>
+              <ComboBox x:Name="DropBox" Width="100" SelectedIndex="1"
+                        SelectionChanged="DropChanged">
+                <ComboBoxItem Content="Off" Tag="Off"/>
+                <ComboBoxItem Content="Light" Tag="Light"/>
+                <ComboBoxItem Content="Heavy" Tag="Heavy"/>
+              </ComboBox>
+              <!-- Wide enough that the value isn’t eaten by the spinner buttons (was 84 → blank). -->
+              <TextBlock Classes="label" Text="X" VerticalAlignment="Center"/>
+              <NumericUpDown x:Name="ShadowXBox" Value="1" Minimum="-20" Maximum="20"
+                             Increment="1" FormatString="0"
+                             Width="120" MinWidth="120" Height="32"
+                             HorizontalContentAlignment="Center"
+                             ShowButtonSpinner="True" AllowSpin="True"
+                             ValueChanged="OffsetChanged"/>
+              <TextBlock Classes="label" Text="Y" VerticalAlignment="Center"/>
+              <NumericUpDown x:Name="ShadowYBox" Value="-1" Minimum="-20" Maximum="20"
+                             Increment="1" FormatString="0"
+                             Width="120" MinWidth="120" Height="32"
+                             HorizontalContentAlignment="Center"
+                             ShowButtonSpinner="True" AllowSpin="True"
+                             ValueChanged="OffsetChanged"/>
+            </StackPanel>
+            <Button Content="Refresh previews" Margin="0,0,0,4" VerticalAlignment="Center"
+                    Click="Refresh_Click"/>
+          </WrapPanel>
+          <Grid ColumnDefinitions="Auto,*">
+            <TextBlock Classes="label" Text="Address" Margin="0,6,8,0" VerticalAlignment="Top"/>
+            <TextBox Grid.Column="1" x:Name="AddrBox" AcceptsReturn="True" MinHeight="56" MaxHeight="96"
+                     LostFocus="Addr_LostFocus"
+                     PlaceholderText="Optional address lines (selected photos only)"/>
+          </Grid>
+        </StackPanel>
       </Border>
     </StackPanel>
 
-    <!-- footer: export path + apply, status under the action -->
+    <!-- footer: export path + apply -->
     <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,16,0,0">
       <Grid ColumnDefinitions="Auto,*,Auto,Auto">
         <TextBlock Classes="label" Text="Output folder" Margin="0,0,8,0"/>
         <TextBox Grid.Column="1" x:Name="OutBox"
-                 PlaceholderText="Where stamped copies are written"/>
+                 PlaceholderText="Where stamped copies are written"
+                 LostFocus="OutBox_LostFocus"/>
         <Button Grid.Column="2" Content="Browse…" Margin="8,0,0,0" Click="OutBrowse_Click"/>
         <Button Grid.Column="3" x:Name="ApplyBtn" Content="Apply to selected" Margin="8,0,0,0"
                 Classes="accent" Click="Apply_Click"
-                ToolTip.Tip="Write stamped copies. Captioned photos are renamed from their caption."/>
+                ToolTip.Tip="Write stamped copies with EXIF matching any date/time override. Captioned photos are renamed."/>
       </Grid>
       <TextBlock x:Name="Result" Classes="hint" TextWrapping="Wrap"
                  Text="Select photos, then apply. Originals stay untouched."/>
     </StackPanel>
 
-    <!-- body: grid + preview -->
+    <!-- body: day-segmented grid + preview -->
     <Grid ColumnDefinitions="3*,2*" Margin="0,14,0,0">
 
       <Border Classes="card">
         <DockPanel>
-          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+          <!-- selection toolbar only when photos are loaded -->
+          <Grid x:Name="LibToolbar" DockPanel.Dock="Top" ColumnDefinitions="*,Auto"
+                Margin="0,0,0,8" IsVisible="False">
             <TextBlock x:Name="CountText" Text="0 of 0 selected" VerticalAlignment="Center"
                        FontWeight="SemiBold"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
@@ -96,50 +124,124 @@
             </StackPanel>
           </Grid>
 
-          <!-- empty state: one clear next action -->
-          <StackPanel x:Name="EmptyGrid" VerticalAlignment="Center" HorizontalAlignment="Center"
-                      Spacing="10" Margin="24" IsVisible="True">
-            <TextBlock Text="No photos loaded" FontSize="16" FontWeight="SemiBold"
-                       HorizontalAlignment="Center"/>
-            <TextBlock Classes="hint" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="280"
-                       Text="Load a folder of photos to stamp dates and optional captions."/>
-            <Button Content="Browse for folder…" HorizontalAlignment="Center" Classes="accent"
-                    Click="Browse_Click"/>
-          </StackPanel>
+          <!-- fill remaining space; empty state uses * / Auto / * so it is truly centered -->
+          <Grid>
+            <Grid x:Name="EmptyGrid" IsVisible="True" Margin="24">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+              </Grid.RowDefinitions>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Row="1" Grid.Column="1" Spacing="12"
+                          HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="No photos loaded" FontSize="16" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" TextAlignment="Center"/>
+                <TextBlock Classes="hint" TextWrapping="Wrap" TextAlignment="Center"
+                           HorizontalAlignment="Center" MaxWidth="280"
+                           Text="Open a folder to stamp dates and optional captions."/>
+                <Button Content="Open folder…" Classes="accent"
+                        HorizontalAlignment="Center" HorizontalContentAlignment="Center"
+                        MinWidth="160" Padding="24,8" Click="Browse_Click"/>
+              </StackPanel>
+            </Grid>
 
-          <ScrollViewer x:Name="PhotoScroll" IsVisible="False">
+          <!-- Google Photos-style: day headers (select-all) + aspect-true wrap of thumbs -->
+          <ScrollViewer x:Name="PhotoScroll" IsVisible="False" HorizontalScrollBarVisibility="Disabled">
             <ItemsControl x:Name="PhotoGrid">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="local:PhotoItem">
-                  <Border Width="150" Height="140" Margin="5" CornerRadius="8" ClipToBounds="True"
-                          Background="#20808080" Cursor="Hand" ToolTip.Tip="{Binding Tip}"
-                          PointerPressed="Cell_Click">
-                    <Panel>
-                      <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
-                      <Border Width="22" Height="22" Margin="6"
-                              HorizontalAlignment="Left" VerticalAlignment="Top"
-                              CornerRadius="5" BorderThickness="2" BorderBrush="#333333" Background="White"
-                              IsVisible="{Binding !Selected}"/>
-                      <Border Width="22" Height="22" Margin="6"
-                              HorizontalAlignment="Left" VerticalAlignment="Top"
-                              CornerRadius="5" BorderThickness="2" BorderBrush="#166534" Background="#22C55E"
-                              IsVisible="{Binding Selected}">
-                        <TextBlock Text="✓" Foreground="White" FontWeight="Bold" FontSize="14"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                      </Border>
-                      <Border VerticalAlignment="Bottom" Background="#8C000000" Padding="4,2">
-                        <TextBlock Text="{Binding Name}" Foreground="White" FontSize="11"
-                                   TextTrimming="CharacterEllipsis"/>
-                      </Border>
-                    </Panel>
-                  </Border>
+                <DataTemplate x:DataType="local:DayGroup">
+                  <StackPanel Margin="0,0,0,10">
+                    <!-- Day header: click selects/deselects that whole day. Checks only in selection mode. -->
+                    <Border Cursor="Hand" Background="Transparent"
+                            ToolTip.Tip="Select or deselect every photo from this day"
+                            PointerPressed="DayHeader_Click">
+                      <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,10,2,8">
+                        <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
+                                BorderBrush="#5F6368" Background="Transparent"
+                                IsVisible="{Binding ShowEmptyDayCheck}"/>
+                        <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
+                                BorderBrush="#1A73E8" Background="#1A73E8"
+                                IsVisible="{Binding ShowPartialDayCheck}">
+                          <Path Width="10" Height="2"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Stretch="Fill" Stroke="White" StrokeThickness="2"
+                                StrokeLineCap="Round" Data="M 0,1 L 10,1"/>
+                        </Border>
+                        <Border Width="22" Height="22" CornerRadius="11" BorderThickness="2"
+                                BorderBrush="#1A73E8" Background="#1A73E8"
+                                IsVisible="{Binding ShowAllDayCheck}">
+                          <Path Width="12" Height="12"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Stretch="Uniform" Stroke="White" StrokeThickness="2"
+                                StrokeLineCap="Round" StrokeJoin="Round"
+                                Data="M 1,6 L 4.5,9.5 L 11,2"/>
+                        </Border>
+                        <TextBlock Text="{Binding Header}" FontSize="17" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Border>
+                    <ItemsControl ItemsSource="{Binding Photos}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="local:PhotoItem">
+                          <!-- Cell keeps full size. Selected: photo shrinks (margin) so a larger plate
+                               sits behind it (Google Photos “huge behind”). Browse: full bleed, no chrome. -->
+                          <Border Height="152" Width="{Binding CellW}" Margin="3"
+                                  Background="Transparent" Cursor="Hand"
+                                  ToolTip.Tip="{Binding Tip}"
+                                  PointerPressed="Cell_Click">
+                            <Panel>
+                              <!-- plate behind (only when selected) -->
+                              <Border CornerRadius="10" Margin="2"
+                                      Background="#E8EAED"
+                                      BoxShadow="0 2 10 0 #40000000"
+                                      IsVisible="{Binding Selected}"/>
+                              <!-- photo card: full cell, or inset when selected -->
+                              <Border Margin="{Binding ThumbMargin}" CornerRadius="6"
+                                      ClipToBounds="True" Background="#14808080">
+                                <Panel>
+                                  <Image Source="{Binding Thumb}" Stretch="Uniform"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                  <!-- empty circle only in selection mode on unselected thumbs -->
+                                  <Border Width="24" Height="24" Margin="6" ZIndex="2"
+                                          HorizontalAlignment="Left" VerticalAlignment="Top"
+                                          CornerRadius="12" BorderThickness="2"
+                                          BorderBrush="#E0FFFFFF" Background="#66000000"
+                                          IsVisible="{Binding ShowEmptyCheck}"/>
+                                  <!-- selected: Google Photos blue + tick -->
+                                  <Border Width="24" Height="24" Margin="6" ZIndex="2"
+                                          HorizontalAlignment="Left" VerticalAlignment="Top"
+                                          CornerRadius="12" BorderThickness="2"
+                                          BorderBrush="#1A73E8" Background="#1A73E8"
+                                          IsVisible="{Binding Selected}">
+                                    <Path Width="12" Height="12"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Stretch="Uniform" Stroke="White" StrokeThickness="2"
+                                          StrokeLineCap="Round" StrokeJoin="Round"
+                                          Data="M 1,6 L 4.5,9.5 L 11,2"/>
+                                  </Border>
+                                </Panel>
+                              </Border>
+                            </Panel>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </ScrollViewer>
+          </Grid>
         </DockPanel>
       </Border>
 
@@ -165,13 +267,13 @@
             <Button x:Name="SaveOneBtn" Content="Save this photo" IsEnabled="False" Click="SaveOne_Click"
                     ToolTip.Tip="Export only the photo in the preview"/>
             <Button x:Name="CaptionAllBtn" Content="Caption selected" IsEnabled="False"
-                    Click="CaptionAll_Click"/>
+                    Click="CaptionAll_Click"
+                    ToolTip.Tip="Run local AI caption on every selected photo (multi-caption)"/>
             <Button x:Name="DownloadModelBtn" Content="Download AI model"
                     Click="DownloadModel_Click"
                     ToolTip.Tip="One-time download. Captioning then runs offline."/>
           </StackPanel>
 
-          <!-- loading next to the AI actions (not a global toast) -->
           <ProgressBar Grid.Row="4" x:Name="AiProgress" Margin="0,10,0,0" Height="4"
                        Minimum="0" Maximum="100" IsVisible="False"/>
           <TextBlock Grid.Row="5" x:Name="AiStatus" Classes="hint" Margin="0,6,0,0"

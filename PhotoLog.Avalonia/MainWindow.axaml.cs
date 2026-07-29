@@ -17,61 +17,166 @@ namespace PhotoLog.Avalonia;
 public partial class MainWindow : Window
 {
     readonly ObservableCollection<PhotoItem> _items = [];
+    readonly ObservableCollection<DayGroup> _days = [];
     PhotoItem? _preview;
     CancellationTokenSource? _cts;
-    (DateOnly? Date, string Addr, int Dx, int Dy) _rendered;
+    (DateOnly? Date, TimeOnly? Time, string Addr, DropShadow Drop, int Dx, int Dy) _rendered;
+    bool _loadingSettings; // suppress Save/Refresh while applying prefs into the UI
+    DropShadow _drop = DropShadow.Light; // source of truth (combo can fire before items exist)
 
     public MainWindow() : this(null) { }
 
     public MainWindow(string? initialFolder)
     {
         InitializeComponent();
-        PhotoGrid.ItemsSource = _items;
-        OutBox.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "PhotoLog-output");
+        PhotoGrid.ItemsSource = _days;
         DownloadModelBtn.Content = $"Download AI model ({Caption.TotalBytes / 1e9:0.0} GB)";
         DownloadModelBtn.IsVisible = !Caption.Ready;
-        // opaque window only — Mica/TransparentBackground made the whole UI see-through on
-        // Wayland/X11 when the compositor didn't actually fill a solid backdrop
-        if (string.IsNullOrWhiteSpace(initialFolder)) return;
-        FolderBox.Text = initialFolder;
-        Opened += async (_, _) => await Rescan(); // `photolog ~/pics` opens straight into the folder
+
+        ApplySettings(Settings.Load());
+        // CLI folder wins over the remembered last folder; always try to open one on launch
+        if (!string.IsNullOrWhiteSpace(initialFolder))
+            FolderBox.Text = initialFolder;
+        if (!string.IsNullOrWhiteSpace(FolderBox.Text))
+            Opened += async (_, _) => await Rescan();
+
+        Closing += (_, _) => Persist(); // last-chance flush (also saved on each change)
     }
 
-    // empty picker (the default) -> every photo keeps its own EXIF date; a picked date
-    // replaces only y/m/d, never the photo's clock (Core.DateLine does the combining)
-    DateOnly? OverrideDate => DatePart.SelectedDate is { } d ? DateOnly.FromDateTime(d) : null;
+    void ApplySettings(Settings.Data s)
+    {
+        _loadingSettings = true;
+        try
+        {
+            _drop = s.DropShadow;
+            SelectDrop(s.DropShadow);
+            if (ShadowXBox is not null) ShadowXBox.Value = s.ShadowX;
+            if (ShadowYBox is not null) ShadowYBox.Value = s.ShadowY;
+            SyncOffsetEnabled();
+            OutBox.Text = string.IsNullOrWhiteSpace(s.OutFolder)
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "PhotoLog-output")
+                : s.OutFolder;
+            if (!string.IsNullOrWhiteSpace(s.LastFolder)) FolderBox.Text = s.LastFolder;
+            AddrBox.Text = s.Address ?? "";
+        }
+        finally { _loadingSettings = false; }
+    }
 
-    // global rendering settings — unlike date/address they apply to every preview and export
-    int ShadowX => (int)(ShadowXBox.Value ?? Core.DefaultShadowX);
-    int ShadowY => (int)(ShadowYBox.Value ?? Core.DefaultShadowY);
+    void SelectDrop(DropShadow drop)
+    {
+        if (DropBox is null) return;
+        for (var i = 0; i < DropBox.ItemCount; i++)
+        {
+            if (ReadDropTag(DropBox.Items[i]) is { } d && d == drop)
+            {
+                DropBox.SelectedIndex = i;
+                return;
+            }
+        }
+        DropBox.SelectedIndex = 1; // Light
+    }
+
+    static DropShadow? ReadDropTag(object? item)
+    {
+        if (item is ComboBoxItem cbi && cbi.Tag is string tag
+            && Enum.TryParse<DropShadow>(tag, true, out var d))
+            return d;
+        if (item is string s && Enum.TryParse<DropShadow>(s, true, out var d2))
+            return d2;
+        return null;
+    }
+
+    DropShadow CurrentDrop => _drop;
+    int ShadowX => (int)(ShadowXBox?.Value ?? Core.DefaultShadowX);
+    int ShadowY => (int)(ShadowYBox?.Value ?? Core.DefaultShadowY);
+
+    void SyncOffsetEnabled()
+    {
+        var on = _drop != DropShadow.Off;
+        if (ShadowXBox is not null) ShadowXBox.IsEnabled = on;
+        if (ShadowYBox is not null) ShadowYBox.IsEnabled = on;
+    }
+
+    void Persist()
+    {
+        if (_loadingSettings) return;
+        try
+        {
+            Settings.Save(new Settings.Data
+            {
+                DropShadow = _drop,
+                ShadowX = ShadowX,
+                ShadowY = ShadowY,
+                OutFolder = OutBox?.Text?.Trim(),
+                LastFolder = FolderBox?.Text?.Trim(),
+                Address = AddrBox?.Text,
+            });
+        }
+        catch { /* prefs are best-effort; never crash the UI */ }
+    }
+
+    // empty pickers (the default) -> every photo keeps its own EXIF date/time; each field is independent
+    DateOnly? OverrideDate => DatePart.SelectedDate is { } d ? DateOnly.FromDateTime(d) : null;
+    TimeOnly? OverrideTime => TimePart.SelectedTime is { } ts ? TimeOnly.FromTimeSpan(ts) : null;
 
     async void Browse_Click(object? sender, RoutedEventArgs e)
     {
         var picked = await StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions { Title = "Pick photo folder", AllowMultiple = false });
+            new FolderPickerOpenOptions { Title = "Open photo folder", AllowMultiple = false });
         if (picked.Count == 0) return;
         FolderBox.Text = picked[0].TryGetLocalPath() ?? picked[0].Path.LocalPath;
+        Persist();
         await Rescan();
     }
 
-    async void Load_Click(object? sender, RoutedEventArgs e) => await Rescan();
-
+    /// Typed path: Enter loads (Browse/Open already loads after pick).
     async void Folder_KeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter) await Rescan();
+        if (e.Key == Key.Enter) { Persist(); await Rescan(); }
     }
 
     void ClearDate_Click(object? sender, RoutedEventArgs e) => DatePart.SelectedDate = null;
+    void ClearTime_Click(object? sender, RoutedEventArgs e) => TimePart.SelectedTime = null;
 
-    // date/address/style changes re-render every preview but must never touch the selection
     async void DateChanged(object? sender, SelectionChangedEventArgs e) => await Refresh();
-    async void StyleChanged(object? sender, NumericUpDownValueChangedEventArgs e) => await Refresh();
+    async void TimeChanged(object? sender, TimePickerSelectedValueChangedEventArgs e) => await Refresh();
+
+    async void DropChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingSettings) return;
+        if (ReadDropTag(DropBox?.SelectedItem) is not { } d) return;
+        _drop = d;
+        // picking a weight also snaps to its suggested offset (user can then fine-tune X/Y)
+        if (d != DropShadow.Off)
+        {
+            var (px, py) = Core.DropOffset(d);
+            _loadingSettings = true;
+            try
+            {
+                if (ShadowXBox is not null) ShadowXBox.Value = px;
+                if (ShadowYBox is not null) ShadowYBox.Value = py;
+            }
+            finally { _loadingSettings = false; }
+        }
+        SyncOffsetEnabled();
+        Persist();
+        await Refresh();
+    }
+
+    async void OffsetChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+    {
+        if (_loadingSettings) return;
+        Persist();
+        await Refresh();
+    }
+
     async void Refresh_Click(object? sender, RoutedEventArgs e) => await Refresh();
 
-    // leaving the address box only costs a re-render when the text actually changed
     async void Addr_LostFocus(object? sender, RoutedEventArgs e)
     {
-        if ((OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY) != _rendered) await Refresh();
+        Persist();
+        if ((OverrideDate, OverrideTime, AddrBox.Text ?? "", CurrentDrop, ShadowX, ShadowY) != _rendered)
+            await Refresh();
     }
 
     async void OutBrowse_Click(object? sender, RoutedEventArgs e)
@@ -80,6 +185,21 @@ public partial class MainWindow : Window
             new FolderPickerOpenOptions { Title = "Pick output folder", AllowMultiple = false });
         if (picked.Count == 0) return;
         OutBox.Text = picked[0].TryGetLocalPath() ?? picked[0].Path.LocalPath;
+        Persist();
+    }
+
+    void OutBox_LostFocus(object? sender, RoutedEventArgs e) => Persist();
+
+    /// Rebuild day sections (Google Photos style). _items is already newest-first.
+    void RebuildDays()
+    {
+        _days.Clear();
+        foreach (var g in _items.GroupBy(i => DateOnly.FromDateTime(i.Taken)))
+        {
+            var day = new DayGroup { Header = Core.DayHeader(g.Key), Day = g.Key };
+            foreach (var p in g) day.Photos.Add(p);
+            _days.Add(day);
+        }
     }
 
     async Task Refresh()
@@ -88,9 +208,10 @@ public partial class MainWindow : Window
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
         Status.Text = $"{_items.Count} image(s) loaded — rendering previews…";
-        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY, _cts.Token);
+        await RenderThumbs([.. _items], OverrideDate, OverrideTime, AddrBox.Text ?? "", CurrentDrop,
+                           ShadowX, ShadowY, _cts.Token);
         if (_cts.IsCancellationRequested) return;
-        _rendered = (OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY);
+        _rendered = (OverrideDate, OverrideTime, AddrBox.Text ?? "", CurrentDrop, ShadowX, ShadowY);
         Status.Text = $"{_items.Count} image(s) loaded.";
         if (_preview is not null) ShowPreview(_preview);
     }
@@ -107,31 +228,37 @@ public partial class MainWindow : Window
         if (found.Count == 0)
         {
             _items.Clear();
+            _days.Clear();
             UpdateCount();
             EmptyGrid.IsVisible = true;
             PhotoScroll.IsVisible = false;
+            LibToolbar.IsVisible = false;
             Status.Text = Directory.Exists(folder)
                 ? "No photos in that folder — try another path."
-                : "Choose a folder to get started.";
+                : "Open a folder of photos to get started.";
             return;
         }
 
-        _items.Clear(); // a freshly loaded folder always starts with nothing selected
+        _items.Clear();
         EmptyGrid.IsVisible = false;
         PhotoScroll.IsVisible = true;
-        foreach (var (name, path) in found)
-            _items.Add(new PhotoItem { Name = name, Path = path, Tip = name });
+        LibToolbar.IsVisible = true;
+        foreach (var s in found)
+            _items.Add(new PhotoItem { Name = s.Name, Path = s.Path, Taken = s.Taken, Tip = s.Name });
+        RebuildDays();
         UpdateCount();
         Status.Text = $"Loading {_items.Count} photo(s)…";
 
-        await RenderThumbs([.. _items], OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY, ct);
+        await RenderThumbs([.. _items], OverrideDate, OverrideTime, AddrBox.Text ?? "", CurrentDrop,
+                           ShadowX, ShadowY, ct);
         if (ct.IsCancellationRequested) return;
-        _rendered = (OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY);
+        _rendered = (OverrideDate, OverrideTime, AddrBox.Text ?? "", CurrentDrop, ShadowX, ShadowY);
         Status.Text = $"{_items.Count} photo(s) loaded. Select some, then Apply.";
+        Persist(); // remember last folder once a scan succeeds
     }
 
-    static async Task RenderThumbs(IReadOnlyList<PhotoItem> items, DateOnly? date, string addr, int dx, int dy,
-                                   CancellationToken ct)
+    static async Task RenderThumbs(IReadOnlyList<PhotoItem> items, DateOnly? date, TimeOnly? time, string addr,
+                                   DropShadow drop, int dx, int dy, CancellationToken ct)
     {
         try
         {
@@ -142,8 +269,9 @@ public partial class MainWindow : Window
                 {
                     try
                     {
-                        var (d, a, cap) = Core.Fields(item.Selected, date, addr, item.Caption);
-                        var (jpeg, line) = Core.Thumb(item.Path, d, a, shadowX: dx, shadowY: dy, caption: cap);
+                        var (d, t, a, cap) = Core.Fields(item.Selected, date, time, addr, item.Caption);
+                        var (jpeg, line) = Core.Thumb(item.Path, d, a, drop: drop, caption: cap, overrideTime: t,
+                                                      shadowX: dx, shadowY: dy);
                         var bmp = new Bitmap(new MemoryStream(jpeg));
                         Dispatcher.UIThread.Post(() => { item.Thumb = bmp; item.Tip = $"{item.Name} — {line}"; });
                     }
@@ -156,8 +284,7 @@ public partial class MainWindow : Window
         catch (OperationCanceledException) { /* superseded by a newer scan */ }
     }
 
-    // an override only applies to checked photos, so toggling one changes what it should look like
-    bool HasOverride => OverrideDate is not null || !string.IsNullOrWhiteSpace(AddrBox.Text);
+    bool HasOverride => OverrideDate is not null || OverrideTime is not null || !string.IsNullOrWhiteSpace(AddrBox.Text);
 
     async void Cell_Click(object? sender, PointerPressedEventArgs e)
     {
@@ -165,8 +292,25 @@ public partial class MainWindow : Window
         item.Selected = !item.Selected;
         UpdateCount();
         ShowPreview(item);
-        // selection gates the override AND this photo's caption, so either one means a restamp
         if (HasOverride || item.Caption.Length > 0) await RestampOne(item);
+    }
+
+    /// Google Photos: day header check selects all in that day, or deselects when already all-on.
+    async void DayHeader_Click(object? sender, PointerPressedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is not DayGroup day) return;
+        e.Handled = true;
+        var select = !day.AllSelected; // none/partial → all; all → none
+        foreach (var p in day.Photos) p.Selected = select;
+        UpdateCount();
+        if (HasOverride)
+        {
+            // only restamp this day — overrides paint only on selected
+            await RenderThumbs(day.Photos.ToList(), OverrideDate, OverrideTime, AddrBox.Text ?? "",
+                               CurrentDrop, ShadowX, ShadowY, CancellationToken.None);
+            if (_preview is not null) ShowPreview(_preview);
+        }
+        else if (_preview is not null) ShowPreview(_preview);
     }
 
     void ShowPreview(PhotoItem item)
@@ -175,8 +319,8 @@ public partial class MainWindow : Window
         PreviewImage.Source = item.Thumb;
         PreviewName.Text = item.Name + (item.Selected ? "  [selected ✓]" : "  [not selected]");
         CaptionBox.Text = item.Caption;
-        SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = true; // manual captions never need the model
-        CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = Caption.Ready;
+        SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = true;
+        SyncCaptionButtons();
     }
 
     void ClearPreview()
@@ -185,25 +329,32 @@ public partial class MainWindow : Window
         PreviewImage.Source = null;
         PreviewName.Text = "Select a photo to preview and caption it";
         CaptionBox.Text = "";
-        SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = false;
+        SaveOneBtn.IsEnabled = CaptionBox.IsEnabled = false;
+        SyncCaptionButtons();
     }
 
-    // ---- opt-in local captioning (Gemma 4 E2B via llama.cpp, downloaded on first use) ----
+    /// Caption (one) needs a preview; Caption selected needs any selection + model ready.
+    void SyncCaptionButtons()
+    {
+        var ready = Caption.Ready;
+        CaptionBtn.IsEnabled = ready && _preview is not null;
+        CaptionAllBtn.IsEnabled = ready && _items.Any(i => i.Selected);
+    }
 
     async void Caption_LostFocus(object? sender, RoutedEventArgs e)
     {
         if (_preview is null) return;
-        // tidy so stamp + rename slug see the same one-line form as the model path
         var cleaned = Caption.Tidy(CaptionBox.Text ?? "");
         if (cleaned != (CaptionBox.Text ?? "")) CaptionBox.Text = cleaned;
         if (_preview.Caption == cleaned) return;
         _preview.Caption = cleaned;
-        await RestampOne(_preview); // an edited or cleared caption changes what the stamp says
+        await RestampOne(_preview);
     }
 
     async Task RestampOne(PhotoItem item)
     {
-        await RenderThumbs([item], OverrideDate, AddrBox.Text ?? "", ShadowX, ShadowY, CancellationToken.None);
+        await RenderThumbs([item], OverrideDate, OverrideTime, AddrBox.Text ?? "", CurrentDrop,
+                           ShadowX, ShadowY, CancellationToken.None);
         if (_preview == item) ShowPreview(item);
     }
 
@@ -245,11 +396,10 @@ public partial class MainWindow : Window
         {
             AiProgress.IsVisible = false;
             AiProgress.IsIndeterminate = false;
-            CaptionBtn.IsEnabled = CaptionAllBtn.IsEnabled = _preview is not null && Caption.Ready;
+            SyncCaptionButtons();
         }
     }
 
-    /// The model only arrives via the explicit Download button; Caption itself never downloads.
     Task<bool> EnsureModel()
     {
         if (Caption.Ready) return Task.FromResult(true);
@@ -273,9 +423,10 @@ public partial class MainWindow : Window
                 AiStatus.Text = $"Downloading model… {f * gb:0.00} / {gb:0.0} GB ({f:P0})";
             });
             await Caption.Download(progress, CancellationToken.None);
-            AiStatus.Text = "Model ready — pick a photo and caption it.";
+            AiStatus.Text = "Model ready — pick a photo, or multi-select and Caption selected.";
             DownloadModelBtn.IsVisible = false;
-            if (_preview is not null) ShowPreview(_preview); // re-sync caption button states
+            SyncCaptionButtons();
+            if (_preview is not null) ShowPreview(_preview);
         }
         catch (Exception ex)
         {
@@ -299,7 +450,20 @@ public partial class MainWindow : Window
         else if (_preview is not null) ShowPreview(_preview);
     }
 
-    void UpdateCount() => CountText.Text = $"{_items.Count(i => i.Selected)} of {_items.Count} selected";
+    void UpdateCount()
+    {
+        var sel = _items.Count(i => i.Selected);
+        CountText.Text = $"{sel} of {_items.Count} selected";
+        // selection mode = any selected → empty circles + day checks; browse = clean (GP Image #2)
+        var mode = sel > 0;
+        foreach (var i in _items) i.InSelectionMode = mode;
+        foreach (var d in _days)
+        {
+            d.InSelectionMode = mode;
+            d.RefreshSelection();
+        }
+        SyncCaptionButtons();
+    }
 
     async void Apply_Click(object? sender, RoutedEventArgs e)
     {
@@ -314,7 +478,6 @@ public partial class MainWindow : Window
 
     async void SaveOne_Click(object? sender, RoutedEventArgs e)
     {
-        // always stamp/rename this preview with current UI fields + its caption (even if unchecked)
         if (_preview is not null) await Write([_preview], "Saved", forceSelected: true);
     }
 
@@ -326,24 +489,25 @@ public partial class MainWindow : Window
             Result.Text = "Choose an output folder first.";
             return;
         }
+        Persist();
         var date = OverrideDate;
+        var time = OverrideTime;
         var addr = AddrBox.Text ?? "";
+        var drop = CurrentDrop;
         var (dx, dy) = (ShadowX, ShadowY);
         ApplyBtn.IsEnabled = SaveOneBtn.IsEnabled = false;
         Result.Text = $"Writing {items.Count} photo(s) to {outDir}…";
         try
         {
-            // sequential so ExportFileName collision suffixes are stable and race-free
             var names = await Task.Run(() =>
             {
                 var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var written = new List<string>(items.Count);
                 foreach (var i in items)
                 {
-                    var (d, a, cap) = Core.Fields(forceSelected || i.Selected, date, addr, i.Caption);
-                    // caption (when present) becomes the export base name; empty keeps original
+                    var (d, t, a, cap) = Core.Fields(forceSelected || i.Selected, date, time, addr, i.Caption);
                     var name = Core.ExportFileName(i.Name, cap, used);
-                    Core.Export(i.Path, name, outDir, d, a, dx, dy, cap);
+                    Core.Export(i.Path, name, outDir, d, a, drop, cap, overrideTime: t, shadowX: dx, shadowY: dy);
                     written.Add(name);
                 }
                 return written;
