@@ -63,50 +63,46 @@
                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                Text=""/>
 
-    <!-- Bottom: ◀ · count · filmstrip · ▶ -->
+    <!-- Compact filmstrip: ◀ · thumbs · ▶ · count (right) — small height -->
     <Border DockPanel.Dock="Bottom" x:Name="SelectedListHost" IsVisible="False"
-            Classes="card" Margin="0,6,0,0" Padding="8,6">
-      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+            Margin="0,4,0,0" Padding="4,2" Background="Transparent">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
         <Button x:Name="PrevSelBtn2" Classes="quiet" Content="◀"
-                Padding="12,6" FontSize="16" MinWidth="40" MinHeight="52"
-                VerticalAlignment="Center" Margin="0,0,8,0"
+                Padding="8,2" FontSize="14" MinWidth="32" MinHeight="36"
+                VerticalAlignment="Center" Margin="0,0,4,0"
                 IsEnabled="False" Click="PrevSelected_Click"
                 ToolTip.Tip="Previous selected"/>
-        <TextBlock Grid.Column="1" x:Name="SelectedListHeader" Classes="section"
-                   VerticalAlignment="Center" Margin="0,0,10,0" Text="0"/>
-        <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto"
+        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Disabled" AllowAutoHide="True"
-                      VerticalAlignment="Center">
+                      VerticalAlignment="Center" MaxHeight="40">
           <ItemsControl x:Name="SelectedList" HorizontalAlignment="Left">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal" Spacing="4"/>
+                <StackPanel Orientation="Horizontal" Spacing="3"/>
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="local:PhotoItem">
-                <Border Cursor="Hand" Width="56" Height="56" CornerRadius="6"
+                <Border Cursor="Hand" Width="36" Height="36" CornerRadius="5"
                         ClipToBounds="True" BorderThickness="1"
                         BorderBrush="{DynamicResource BrushBorder}"
                         Background="{DynamicResource BrushThumbBg}"
                         PointerPressed="SelectedListItem_Click"
                         ToolTip.Tip="{Binding Name}">
-                  <Panel>
-                    <Image Source="{Binding Thumb}" Stretch="UniformToFill"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    <Border Height="2" VerticalAlignment="Bottom"
-                            Background="{DynamicResource BrushSelect}" Opacity="0.85"/>
-                  </Panel>
+                  <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
                 </Border>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </ScrollViewer>
-        <Button Grid.Column="3" x:Name="NextSelBtn2" Classes="quiet" Content="▶"
-                Padding="12,6" FontSize="16" MinWidth="40" MinHeight="52"
-                VerticalAlignment="Center" Margin="10,0,0,0"
+        <Button Grid.Column="2" x:Name="NextSelBtn2" Classes="quiet" Content="▶"
+                Padding="8,2" FontSize="14" MinWidth="32" MinHeight="36"
+                VerticalAlignment="Center" Margin="4,0,8,0"
                 IsEnabled="False" Click="NextSelected_Click"
                 ToolTip.Tip="Next selected"/>
+        <TextBlock Grid.Column="3" x:Name="SelectedListHeader" Classes="hint"
+                   VerticalAlignment="Center" FontWeight="SemiBold"
+                   Margin="0,0,2,0" Text="0"/>
       </Grid>
     </Border>
 
@@ -116,27 +112,25 @@
       <!-- LEFT: library grid -->
       <Border Classes="card" Margin="0,0,6,0" Padding="10">
         <DockPanel>
-          <StackPanel x:Name="LibToolbar" DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,6" IsVisible="False">
-            <!-- Only bulk select up here; count + ◀▶ live on the bottom filmstrip -->
+          <StackPanel x:Name="LibToolbar" DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,4" IsVisible="False">
+            <!-- One line: select + AI -->
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Button Classes="quiet" Content="Select all" Padding="10,5" Click="SelectAll_Click"/>
               <Button Classes="quiet" Content="Select none" Padding="10,5" Click="SelectNone_Click"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Border Width="1" Height="18" Background="{DynamicResource BrushBorder}"
+                      VerticalAlignment="Center" Margin="4,0"/>
               <TextBlock Classes="hint" Text="AI" VerticalAlignment="Center"
                          ToolTip.Tip="YOLO26n COCO objects. Detect once, cache labels."/>
-              <ComboBox x:Name="AiCategoryBox" Width="130" MinHeight="32" SelectedIndex="0"/>
-              <TextBox x:Name="AiCustomBox" Width="110" MinHeight="32"
+              <ComboBox x:Name="AiCategoryBox" Width="120" MinHeight="30" SelectedIndex="0"/>
+              <TextBox x:Name="AiCustomBox" Width="96" MinHeight="30"
                        PlaceholderText="or dog…"
                        ToolTip.Tip="COCO class name (dog, chair, car…)"/>
               <Button x:Name="AiSelectBtn" Classes="quiet" Content="AI select"
                       Padding="10,5" Click="AiSelect_Click"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <ProgressBar x:Name="AiProgress" Minimum="0" Maximum="100" Width="160"
-                           Height="6" IsVisible="False" VerticalAlignment="Center"/>
+              <ProgressBar x:Name="AiProgress" Minimum="0" Maximum="100" Width="100"
+                           Height="5" IsVisible="False" VerticalAlignment="Center" Margin="6,0,0,0"/>
               <TextBlock x:Name="AiStatus" Classes="hint" TextWrapping="NoWrap"
-                         TextTrimming="CharacterEllipsis"/>
+                         TextTrimming="CharacterEllipsis" VerticalAlignment="Center" MaxWidth="200"/>
             </StackPanel>
           </StackPanel>
 
