@@ -758,7 +758,7 @@ public partial class MainWindow : Window
         var n = Math.Max(1, _items.Count);
 
         var brush = this.TryFindResource("BrushSelect", ActualThemeVariant, out var res) && res is IBrush b
-            ? b : new SolidColorBrush(Color.Parse("#8AB4F8"));
+            ? b : new SolidColorBrush(Color.Parse("#90A9BF"));
 
         foreach (var item in selected)
         {

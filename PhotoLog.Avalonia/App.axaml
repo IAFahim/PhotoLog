@@ -2,78 +2,88 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PhotoLog.Avalonia.App"
              RequestedThemeVariant="Dark">
-  <!-- Light purple mockup + dark counterpart. Brushes are theme-dictionary so toggle is live. -->
+  <!-- "Soft clinical": pale blue-grey page, white cards, hairline borders, no shadows,
+       nothing saturated. Brushes are theme-dictionary so the toggle stays live. -->
 
   <Application.Resources>
     <ResourceDictionary>
+      <!-- Shape / rhythm / type — variant-independent -->
+      <CornerRadius x:Key="RadCard">18</CornerRadius>
+      <CornerRadius x:Key="RadControl">12</CornerRadius>
+      <CornerRadius x:Key="RadChip">8</CornerRadius>
+      <Thickness x:Key="PadCard">16</Thickness>
+      <Thickness x:Key="PadButton">18,10</Thickness>
+      <Thickness x:Key="PadChip">10,4</Thickness>
+      <FontFamily x:Key="FontMono">JetBrains Mono,Cascadia Mono,SF Mono,Consolas,DejaVu Sans Mono,Liberation Mono,monospace</FontFamily>
+
       <ResourceDictionary.ThemeDictionaries>
-        <!-- Default/Light: neutral surfaces + Google-blue accent -->
+        <!-- Default/Light: pale blue-grey page, white surfaces, desaturated blue accent -->
         <ResourceDictionary x:Key="Default">
-          <SolidColorBrush x:Key="BrushWindow" Color="#F6F7F9"/>
+          <SolidColorBrush x:Key="BrushWindow" Color="#EBF1F6"/>
           <SolidColorBrush x:Key="BrushCard" Color="#FFFFFF"/>
-          <SolidColorBrush x:Key="BrushField" Color="#F1F3F6"/>
+          <SolidColorBrush x:Key="BrushField" Color="#F4F8FB"/>
           <SolidColorBrush x:Key="BrushElevated" Color="#FFFFFF"/>
-          <SolidColorBrush x:Key="BrushBorder" Color="#E2E5EA"/>
-          <SolidColorBrush x:Key="BrushBorderMuted" Color="#C6CBD2"/>
-          <SolidColorBrush x:Key="BrushText" Color="#1F2328"/>
-          <SolidColorBrush x:Key="BrushMuted" Color="#5C6470"/>
-          <SolidColorBrush x:Key="BrushDim" Color="#98A0AA"/>
-          <SolidColorBrush x:Key="BrushAccent" Color="#1A73E8"/>
-          <SolidColorBrush x:Key="BrushAccentHover" Color="#1765CC"/>
-          <SolidColorBrush x:Key="BrushAccentSoft" Color="#E8F0FE"/>
+          <SolidColorBrush x:Key="BrushBorder" Color="#E4EBF2"/>
+          <SolidColorBrush x:Key="BrushBorderMuted" Color="#C6D6E3"/>
+          <SolidColorBrush x:Key="BrushText" Color="#1A2430"/>
+          <SolidColorBrush x:Key="BrushMuted" Color="#93A5B8"/>
+          <SolidColorBrush x:Key="BrushDim" Color="#AEBDCB"/>
+          <SolidColorBrush x:Key="BrushAccent" Color="#7B96AE"/>
+          <SolidColorBrush x:Key="BrushAccentHover" Color="#6A879F"/>
+          <SolidColorBrush x:Key="BrushAccentSoft" Color="#DCE7F0"/>
           <SolidColorBrush x:Key="BrushOnAccent" Color="#FFFFFF"/>
-          <SolidColorBrush x:Key="BrushSelect" Color="#1A73E8"/>
-          <SolidColorBrush x:Key="BrushSelectPlate" Color="#E8F0FE"/>
-          <SolidColorBrush x:Key="BrushThumbBg" Color="#EAEDF1"/>
-          <SolidColorBrush x:Key="BrushThumbRing" Color="#16000000"/>
-          <SolidColorBrush x:Key="BrushDash" Color="#A8C7FA"/>
-          <SolidColorBrush x:Key="BrushDashFill" Color="#0A1A73E8"/>
-          <SolidColorBrush x:Key="BrushCardShadow" Color="#0A000000"/>
+          <SolidColorBrush x:Key="BrushChipText" Color="#2B3A4A"/>
+          <SolidColorBrush x:Key="BrushSelect" Color="#7B96AE"/>
+          <SolidColorBrush x:Key="BrushSelectPlate" Color="#DCE7F0"/>
+          <SolidColorBrush x:Key="BrushThumbBg" Color="#F4F8FB"/>
+          <SolidColorBrush x:Key="BrushThumbRing" Color="#14000000"/>
+          <SolidColorBrush x:Key="BrushDash" Color="#C6D6E3"/>
+          <SolidColorBrush x:Key="BrushDashFill" Color="#F4F8FB"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="BrushWindow" Color="#F6F7F9"/>
+          <SolidColorBrush x:Key="BrushWindow" Color="#EBF1F6"/>
           <SolidColorBrush x:Key="BrushCard" Color="#FFFFFF"/>
-          <SolidColorBrush x:Key="BrushField" Color="#F1F3F6"/>
+          <SolidColorBrush x:Key="BrushField" Color="#F4F8FB"/>
           <SolidColorBrush x:Key="BrushElevated" Color="#FFFFFF"/>
-          <SolidColorBrush x:Key="BrushBorder" Color="#E2E5EA"/>
-          <SolidColorBrush x:Key="BrushBorderMuted" Color="#C6CBD2"/>
-          <SolidColorBrush x:Key="BrushText" Color="#1F2328"/>
-          <SolidColorBrush x:Key="BrushMuted" Color="#5C6470"/>
-          <SolidColorBrush x:Key="BrushDim" Color="#98A0AA"/>
-          <SolidColorBrush x:Key="BrushAccent" Color="#1A73E8"/>
-          <SolidColorBrush x:Key="BrushAccentHover" Color="#1765CC"/>
-          <SolidColorBrush x:Key="BrushAccentSoft" Color="#E8F0FE"/>
+          <SolidColorBrush x:Key="BrushBorder" Color="#E4EBF2"/>
+          <SolidColorBrush x:Key="BrushBorderMuted" Color="#C6D6E3"/>
+          <SolidColorBrush x:Key="BrushText" Color="#1A2430"/>
+          <SolidColorBrush x:Key="BrushMuted" Color="#93A5B8"/>
+          <SolidColorBrush x:Key="BrushDim" Color="#AEBDCB"/>
+          <SolidColorBrush x:Key="BrushAccent" Color="#7B96AE"/>
+          <SolidColorBrush x:Key="BrushAccentHover" Color="#6A879F"/>
+          <SolidColorBrush x:Key="BrushAccentSoft" Color="#DCE7F0"/>
           <SolidColorBrush x:Key="BrushOnAccent" Color="#FFFFFF"/>
-          <SolidColorBrush x:Key="BrushSelect" Color="#1A73E8"/>
-          <SolidColorBrush x:Key="BrushSelectPlate" Color="#E8F0FE"/>
-          <SolidColorBrush x:Key="BrushThumbBg" Color="#EAEDF1"/>
-          <SolidColorBrush x:Key="BrushThumbRing" Color="#16000000"/>
-          <SolidColorBrush x:Key="BrushDash" Color="#A8C7FA"/>
-          <SolidColorBrush x:Key="BrushDashFill" Color="#0A1A73E8"/>
-          <SolidColorBrush x:Key="BrushCardShadow" Color="#0A000000"/>
+          <SolidColorBrush x:Key="BrushChipText" Color="#2B3A4A"/>
+          <SolidColorBrush x:Key="BrushSelect" Color="#7B96AE"/>
+          <SolidColorBrush x:Key="BrushSelectPlate" Color="#DCE7F0"/>
+          <SolidColorBrush x:Key="BrushThumbBg" Color="#F4F8FB"/>
+          <SolidColorBrush x:Key="BrushThumbRing" Color="#14000000"/>
+          <SolidColorBrush x:Key="BrushDash" Color="#C6D6E3"/>
+          <SolidColorBrush x:Key="BrushDashFill" Color="#F4F8FB"/>
         </ResourceDictionary>
-        <!-- Dark: deep neutral surfaces, light-blue accent with dark glyphs on it -->
+        <!-- Dark: same relationships, deep blue-grey instead of pale -->
         <ResourceDictionary x:Key="Dark">
-          <SolidColorBrush x:Key="BrushWindow" Color="#101114"/>
-          <SolidColorBrush x:Key="BrushCard" Color="#1A1C20"/>
-          <SolidColorBrush x:Key="BrushField" Color="#141619"/>
-          <SolidColorBrush x:Key="BrushElevated" Color="#24272C"/>
-          <SolidColorBrush x:Key="BrushBorder" Color="#2B2E34"/>
-          <SolidColorBrush x:Key="BrushBorderMuted" Color="#3F434B"/>
-          <SolidColorBrush x:Key="BrushText" Color="#E8EAED"/>
-          <SolidColorBrush x:Key="BrushMuted" Color="#9AA0A6"/>
-          <SolidColorBrush x:Key="BrushDim" Color="#6E747C"/>
-          <SolidColorBrush x:Key="BrushAccent" Color="#8AB4F8"/>
-          <SolidColorBrush x:Key="BrushAccentHover" Color="#AECBFA"/>
-          <SolidColorBrush x:Key="BrushAccentSoft" Color="#20304A"/>
-          <SolidColorBrush x:Key="BrushOnAccent" Color="#17202B"/>
-          <SolidColorBrush x:Key="BrushSelect" Color="#8AB4F8"/>
-          <SolidColorBrush x:Key="BrushSelectPlate" Color="#223349"/>
-          <SolidColorBrush x:Key="BrushThumbBg" Color="#23262C"/>
-          <SolidColorBrush x:Key="BrushThumbRing" Color="#26FFFFFF"/>
-          <SolidColorBrush x:Key="BrushDash" Color="#4E6485"/>
-          <SolidColorBrush x:Key="BrushDashFill" Color="#148AB4F8"/>
-          <SolidColorBrush x:Key="BrushCardShadow" Color="#40000000"/>
+          <SolidColorBrush x:Key="BrushWindow" Color="#151A20"/>
+          <SolidColorBrush x:Key="BrushCard" Color="#1D242C"/>
+          <SolidColorBrush x:Key="BrushField" Color="#232B34"/>
+          <SolidColorBrush x:Key="BrushElevated" Color="#232B34"/>
+          <SolidColorBrush x:Key="BrushBorder" Color="#2C3540"/>
+          <SolidColorBrush x:Key="BrushBorderMuted" Color="#3A4855"/>
+          <SolidColorBrush x:Key="BrushText" Color="#E6EDF3"/>
+          <SolidColorBrush x:Key="BrushMuted" Color="#7C8B9B"/>
+          <SolidColorBrush x:Key="BrushDim" Color="#6A7886"/>
+          <SolidColorBrush x:Key="BrushAccent" Color="#90A9BF"/>
+          <SolidColorBrush x:Key="BrushAccentHover" Color="#A6BDD0"/>
+          <SolidColorBrush x:Key="BrushAccentSoft" Color="#2A3742"/>
+          <SolidColorBrush x:Key="BrushOnAccent" Color="#151A20"/>
+          <SolidColorBrush x:Key="BrushChipText" Color="#C8D6E2"/>
+          <SolidColorBrush x:Key="BrushSelect" Color="#90A9BF"/>
+          <SolidColorBrush x:Key="BrushSelectPlate" Color="#2A3742"/>
+          <SolidColorBrush x:Key="BrushThumbBg" Color="#232B34"/>
+          <SolidColorBrush x:Key="BrushThumbRing" Color="#22FFFFFF"/>
+          <SolidColorBrush x:Key="BrushDash" Color="#3A4855"/>
+          <SolidColorBrush x:Key="BrushDashFill" Color="#1D242C"/>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
     </ResourceDictionary>
@@ -91,43 +101,56 @@
     <Style Selector="TextBlock">
       <Setter Property="Foreground" Value="{DynamicResource BrushText}"/>
     </Style>
+    <!-- Section captions: small, muted, regular weight, never uppercase-tracked -->
     <Style Selector="TextBlock.label">
       <Setter Property="Foreground" Value="{DynamicResource BrushMuted}"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Margin" Value="0,0,0,6"/>
     </Style>
     <Style Selector="TextBlock.hint">
       <Setter Property="Foreground" Value="{DynamicResource BrushMuted}"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
       <Setter Property="FontSize" Value="12"/>
     </Style>
     <Style Selector="TextBlock.subtitle">
       <Setter Property="Foreground" Value="{DynamicResource BrushMuted}"/>
-      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
     </Style>
+    <!-- Values / paths: mono in the desaturated blue -->
+    <Style Selector="TextBlock.value">
+      <Setter Property="Foreground" Value="{DynamicResource BrushAccent}"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <!-- Emphasis = weight + near-black, never saturation -->
     <Style Selector="TextBlock.section">
-      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="FontSize" Value="13"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Foreground" Value="{DynamicResource BrushText}"/>
     </Style>
 
+    <!-- White pills, hairline border, mono label -->
     <Style Selector="Button">
-      <Setter Property="CornerRadius" Value="10"/>
-      <Setter Property="Padding" Value="14,8"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
+      <Setter Property="Padding" Value="{DynamicResource PadButton}"/>
       <Setter Property="Background" Value="{DynamicResource BrushElevated}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Foreground" Value="{DynamicResource BrushText}"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
     </Style>
     <Style Selector="Button:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource BrushAccentSoft}"/>
+      <Setter Property="Background" Value="{DynamicResource BrushField}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BrushBorderMuted}"/>
     </Style>
     <Style Selector="Button.primary">
       <Setter Property="Background" Value="{DynamicResource BrushAccent}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushAccent}"/>
       <Setter Property="Foreground" Value="{DynamicResource BrushOnAccent}"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Padding" Value="18,9"/>
     </Style>
     <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource BrushAccentHover}"/>
@@ -139,63 +162,136 @@
       <Setter Property="Foreground" Value="{DynamicResource BrushText}"/>
     </Style>
     <Style Selector="Button.quiet:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource BrushAccentSoft}"/>
+      <Setter Property="Background" Value="{DynamicResource BrushField}"/>
+    </Style>
+    <!-- Icon-only pills stay square-ish and evenly gapped -->
+    <Style Selector="Button.icon">
+      <Setter Property="Padding" Value="10"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+    <!-- FluentTheme's disabled fill is a flat #CCCCCC — off-palette. Keep it on-surface. -->
+    <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource BrushField}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
+      <Setter Property="Foreground" Value="{DynamicResource BrushDim}"/>
     </Style>
 
     <Style Selector="TextBox">
-      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Foreground" Value="{DynamicResource BrushText}"/>
-      <Setter Property="Padding" Value="10,8"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Padding" Value="12,8"/>
+    </Style>
+    <Style Selector="TextBox:disabled">
+      <Setter Property="Foreground" Value="{DynamicResource BrushDim}"/>
+    </Style>
+    <Style Selector="TextBox:disabled /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{DynamicResource BrushField}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
     </Style>
     <Style Selector="ComboBox">
-      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
       <Setter Property="MinHeight" Value="34"/>
+      <Setter Property="Padding" Value="12,6"/>
+    </Style>
+    <Style Selector="ComboBoxItem">
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
     </Style>
     <Style Selector="NumericUpDown">
-      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
       <Setter Property="MinHeight" Value="40"/>
       <Setter Property="MinWidth" Value="128"/>
       <!-- Leave room for spinner + signed digits; tight padding + fixed Height was clipping. -->
       <Setter Property="Padding" Value="10,6"/>
     </Style>
-    <!-- Inner text box of NumericUpDown must not clip “-20”. -->
+    <!-- Inner text box of NumericUpDown must not clip "-20". -->
     <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox">
       <Setter Property="MinWidth" Value="48"/>
       <Setter Property="Padding" Value="6,4"/>
       <Setter Property="HorizontalContentAlignment" Value="Right"/>
     </Style>
     <Style Selector="CalendarDatePicker">
-      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
       <Setter Property="MinHeight" Value="34"/>
     </Style>
     <Style Selector="TimePicker">
-      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
       <Setter Property="MinHeight" Value="34"/>
     </Style>
+    <!-- TimePicker's inner segmented group: pills, hairline dividers, no accent fill -->
+    <Style Selector="TimePicker /template/ Rectangle">
+      <Setter Property="Fill" Value="{DynamicResource BrushBorder}"/>
+    </Style>
 
+    <!-- Cards: white, hairline, generously padded, no shadow -->
     <Style Selector="Border.card">
-      <Setter Property="CornerRadius" Value="14"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadCard}"/>
       <Setter Property="Background" Value="{DynamicResource BrushCard}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="16"/>
+      <Setter Property="Padding" Value="{DynamicResource PadCard}"/>
     </Style>
-    <Style Selector="Border.dashEmpty">
-      <Setter Property="CornerRadius" Value="14"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BrushDash}"/>
-      <Setter Property="BorderThickness" Value="1.5"/>
-      <Setter Property="Background" Value="{DynamicResource BrushDashFill}"/>
+    <!-- Chip / tag: quiet fill, small radius, mono. NB: "chip" is taken by the
+         selection-check animation in MainWindow — this one is "tag". -->
+    <Style Selector="Border.tag">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadChip}"/>
+      <Setter Property="Background" Value="{DynamicResource BrushAccentSoft}"/>
+      <Setter Property="Padding" Value="{DynamicResource PadChip}"/>
+    </Style>
+    <Style Selector="Border.tag > TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource BrushChipText}"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <!-- Dashed hairline: drop-target / path regions. Border can't dash, Shape can. -->
+    <Style Selector="Rectangle.dash">
+      <Setter Property="Fill" Value="{DynamicResource BrushDashFill}"/>
+      <Setter Property="Stroke" Value="{DynamicResource BrushDash}"/>
+      <Setter Property="StrokeThickness" Value="1"/>
+      <Setter Property="StrokeDashArray" Value="5,4"/>
+      <Setter Property="RadiusX" Value="18"/>
+      <Setter Property="RadiusY" Value="18"/>
+      <Setter Property="IsHitTestVisible" Value="False"/>
+    </Style>
+
+    <!-- Scroll rails read as hairlines, not mid-grey bars -->
+    <Style Selector="ScrollBar">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="ScrollBar /template/ Thumb">
+      <Setter Property="Background" Value="{DynamicResource BrushBorderMuted}"/>
+    </Style>
+    <Style Selector="ScrollBar /template/ Border#TrackRect">
+      <Setter Property="Background" Value="{DynamicResource BrushField}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
+    </Style>
+    <Style Selector="ScrollBar /template/ RepeatButton">
+      <Setter Property="Foreground" Value="{DynamicResource BrushMuted}"/>
     </Style>
 
     <Style Selector="ProgressBar">
