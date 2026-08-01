@@ -131,29 +131,33 @@
               Stroke="{DynamicResource BrushMuted}" StrokeThickness="1.2"
               Data="M1,3 L1,11 L15,11 L15,4.5 L7.5,4.5 L6,3 Z"/>
         <TextBox Grid.Column="1" x:Name="FolderBox"
-                 BorderThickness="0" Background="Transparent" Padding="0,4"
-                 VerticalAlignment="Center"
+                 BorderThickness="0" Background="Transparent" Padding="0"
+                 VerticalAlignment="Center" VerticalContentAlignment="Center"
+                 MinHeight="28"
                  PlaceholderText="/path/to/photos — Enter to load"
                  ToolTip.Tip="Photo folder. Press Enter to load."
                  KeyDown="Folder_KeyDown"/>
         <TextBlock Grid.Column="2" x:Name="Status" Classes="hint" Margin="16,0,16,0"
-                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                   VerticalAlignment="Center" TextAlignment="Right"
+                   TextTrimming="CharacterEllipsis"
                    MaxWidth="220" Text=""/>
         <Button Grid.Column="3" x:Name="ThemeBtn" Classes="quiet" Content="Light"
-                Margin="0,0,10,0" Click="Theme_Click" ToolTip.Tip="Toggle light/dark theme"/>
+                Margin="0,0,10,0" VerticalAlignment="Center"
+                Click="Theme_Click" ToolTip.Tip="Toggle light/dark theme"/>
         <Button Grid.Column="4" Classes="quiet" Content="Browse…"
-                Margin="0,0,10,0" Click="Browse_Click"/>
+                Margin="0,0,10,0" VerticalAlignment="Center" Click="Browse_Click"/>
         <Button Grid.Column="5" Classes="primary" Content="Load"
-                Click="Browse_Click"/>
+                VerticalAlignment="Center" Click="Browse_Click"/>
       </Grid>
     </Panel>
 
-    <!-- Bottom: caption left, path value, pills right -->
+    <!-- Bottom: Out label | path | Browse | Apply — one baseline -->
     <Border DockPanel.Dock="Bottom" Classes="card" Margin="0,12,0,0" Padding="16,10">
-      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-        <TextBlock Classes="hint" Text="Out" VerticalAlignment="Center" Margin="0,0,12,0"/>
-        <TextBox Grid.Column="1" x:Name="OutBox" MinHeight="36" Padding="12,6"
-                 VerticalAlignment="Center"
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto" MinHeight="36">
+        <TextBlock Classes="hint" Text="Out" VerticalAlignment="Center"
+                   TextAlignment="Left" Margin="0,0,12,0"/>
+        <TextBox Grid.Column="1" x:Name="OutBox"
+                 VerticalAlignment="Center" VerticalContentAlignment="Center"
                  PlaceholderText="Output folder"
                  LostFocus="OutBox_LostFocus"/>
         <Button Grid.Column="2" Classes="quiet" Content="Browse…"
@@ -225,19 +229,22 @@
 
           <StackPanel x:Name="LibToolbar" DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12" IsVisible="False">
             <!-- One line: select + AI -->
-            <StackPanel Orientation="Horizontal" Spacing="10">
-              <Button Classes="quiet" Content="Select all" Padding="14,8" Click="SelectAll_Click"/>
-              <Button Classes="quiet" Content="Select none" Padding="14,8" Click="SelectNone_Click"/>
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <Button Classes="quiet" Content="Select all" VerticalAlignment="Center"
+                      Click="SelectAll_Click"/>
+              <Button Classes="quiet" Content="Select none" VerticalAlignment="Center"
+                      Click="SelectNone_Click"/>
               <Border Width="1" Height="18" Background="{DynamicResource BrushBorder}"
                       VerticalAlignment="Center" Margin="2,0"/>
               <TextBlock Classes="hint" Text="AI" VerticalAlignment="Center"
                          ToolTip.Tip="YOLO26n COCO objects. Detect once, cache labels."/>
-              <ComboBox x:Name="AiCategoryBox" Width="120" MinHeight="34" SelectedIndex="0"/>
-              <TextBox x:Name="AiCustomBox" Width="92" MinHeight="34" Padding="10,6"
+              <ComboBox x:Name="AiCategoryBox" Width="120" VerticalAlignment="Center"
+                        SelectedIndex="0"/>
+              <TextBox x:Name="AiCustomBox" Width="92" VerticalAlignment="Center"
                        PlaceholderText="or dog…"
                        ToolTip.Tip="COCO class name (dog, chair, car…)"/>
               <Button x:Name="AiSelectBtn" Classes="quiet" Content="AI select"
-                      Padding="14,8" Click="AiSelect_Click"/>
+                      VerticalAlignment="Center" Click="AiSelect_Click"/>
               <ProgressBar x:Name="AiProgress" Minimum="0" Maximum="100" Width="100"
                            Height="5" IsVisible="False" VerticalAlignment="Center" Margin="6,0,0,0"/>
               <TextBlock x:Name="AiStatus" Classes="hint" TextWrapping="NoWrap"
@@ -387,84 +394,98 @@
           <!-- Controls only — no Date/Time/Address/Shadow labels (placeholders + tips). -->
           <StackPanel Grid.Row="1" Spacing="10" Margin="0,14,0,0">
             <TextBlock x:Name="PreviewName" Classes="value" TextAlignment="Left"
+                       VerticalAlignment="Center"
                        TextTrimming="CharacterEllipsis" MaxLines="1" IsVisible="False" Text=""/>
 
-            <Grid ColumnDefinitions="*,12,*">
-              <Grid ColumnDefinitions="*,Auto"
+            <!-- Date | Time: same height, clear × buttons center-aligned with fields -->
+            <Grid ColumnDefinitions="*,12,*" MinHeight="36"
+                  VerticalAlignment="Center">
+              <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center"
                     ToolTip.Tip="Date override (empty = keep each photo’s day)">
-                <CalendarDatePicker x:Name="DatePart" MinHeight="36" MinWidth="0"
+                <CalendarDatePicker x:Name="DatePart" MinWidth="0"
                                     HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Center"
                                     SelectedDateChanged="DateChanged"/>
                 <Button Grid.Column="1" Classes="quiet icon" Content="×" Margin="8,0,0,0"
+                        VerticalAlignment="Center"
                         Click="ClearDate_Click" ToolTip.Tip="Clear date override"/>
               </Grid>
-              <Grid Grid.Column="2" ColumnDefinitions="*,Auto"
+              <Grid Grid.Column="2" ColumnDefinitions="*,Auto" VerticalAlignment="Center"
                     ToolTip.Tip="Time override (empty = keep each photo’s clock)">
-                <TimePicker x:Name="TimePart" MinHeight="36" MinWidth="0"
+                <TimePicker x:Name="TimePart" MinWidth="0"
                             HorizontalAlignment="Stretch"
+                            VerticalAlignment="Center"
                             ClockIdentifier="12HourClock" UseSeconds="True"
                             SelectedTimeChanged="TimeChanged"/>
                 <Button Grid.Column="1" Classes="quiet icon" Content="×" Margin="8,0,0,0"
+                        VerticalAlignment="Center"
                         Click="ClearTime_Click" ToolTip.Tip="Clear time override"/>
               </Grid>
             </Grid>
 
-            <TextBox x:Name="AddrBox" AcceptsReturn="True" TextWrapping="Wrap"
-                     MinHeight="56" MaxHeight="100" Padding="12,8"
+            <TextBox x:Name="AddrBox" Classes="multiline" AcceptsReturn="True"
+                     TextWrapping="Wrap" MaxHeight="100"
                      LostFocus="Addr_LostFocus"
                      PlaceholderText="Address (selected only)"
                      ToolTip.Tip="Optional address lines applied to selected photos"/>
 
             <Grid ColumnDefinitions="*,Auto,1.1*,Auto,1.1*,Auto" MinHeight="36"
+                  VerticalAlignment="Center"
                   ToolTip.Tip="Drop shadow: +X right, −Y up">
-              <ComboBox x:Name="DropBox" MinHeight="36" HorizontalAlignment="Stretch"
+              <ComboBox x:Name="DropBox" HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
                         SelectedIndex="1" SelectionChanged="DropChanged">
                 <ComboBoxItem Content="Off" Tag="Off"/>
                 <ComboBoxItem Content="Light" Tag="Light"/>
                 <ComboBoxItem Content="Heavy" Tag="Heavy"/>
               </ComboBox>
-              <TextBlock Grid.Column="1" Text="X" Classes="hint" VerticalAlignment="Center"
-                         Margin="12,0,8,0"/>
+              <TextBlock Grid.Column="1" Text="X" Classes="hint"
+                         VerticalAlignment="Center" TextAlignment="Center"
+                         Margin="12,0,8,0" Width="12"/>
               <NumericUpDown Grid.Column="2" x:Name="ShadowXBox" Value="1"
                              Minimum="-20" Maximum="20" Increment="1" FormatString="0"
-                             MinHeight="36" MinWidth="72" HorizontalAlignment="Stretch"
-                             HorizontalContentAlignment="Center" Padding="8,4"
+                             MinWidth="72" HorizontalAlignment="Stretch"
+                             VerticalAlignment="Center"
                              ShowButtonSpinner="True" AllowSpin="True"
                              ButtonSpinnerLocation="Right"
                              ValueChanged="OffsetChanged"/>
-              <TextBlock Grid.Column="3" Text="Y" Classes="hint" VerticalAlignment="Center"
-                         Margin="12,0,8,0"/>
+              <TextBlock Grid.Column="3" Text="Y" Classes="hint"
+                         VerticalAlignment="Center" TextAlignment="Center"
+                         Margin="12,0,8,0" Width="12"/>
               <NumericUpDown Grid.Column="4" x:Name="ShadowYBox" Value="-1"
                              Minimum="-20" Maximum="20" Increment="1" FormatString="0"
-                             MinHeight="36" MinWidth="72" HorizontalAlignment="Stretch"
-                             HorizontalContentAlignment="Center" Padding="8,4"
+                             MinWidth="72" HorizontalAlignment="Stretch"
+                             VerticalAlignment="Center"
                              ShowButtonSpinner="True" AllowSpin="True"
                              ButtonSpinnerLocation="Right"
                              ValueChanged="OffsetChanged"/>
               <Button Grid.Column="5" Classes="quiet icon" Content="↻"
-                      Margin="12,0,0,0" MinHeight="36" VerticalAlignment="Stretch"
+                      Margin="12,0,0,0" VerticalAlignment="Center"
                       Click="Refresh_Click" ToolTip.Tip="Refresh thumbs"/>
             </Grid>
 
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBox x:Name="CaptionBox" MinHeight="36" Padding="12,6"
+            <Grid ColumnDefinitions="*,Auto" MinHeight="36" VerticalAlignment="Center">
+              <TextBox x:Name="CaptionBox"
+                       VerticalAlignment="Center" VerticalContentAlignment="Center"
                        PlaceholderText="Caption → export name"
                        LostFocus="Caption_LostFocus" IsEnabled="False"/>
               <Button Grid.Column="1" x:Name="CaptionBtn" Classes="quiet" Content="Caption"
-                      Margin="10,0,0,0" Padding="14,8" IsEnabled="False" Click="Caption_Click"/>
+                      Margin="10,0,0,0" VerticalAlignment="Center"
+                      IsEnabled="False" Click="Caption_Click"/>
             </Grid>
 
-            <!-- Segmented pair: even gap, equal height -->
-            <Grid ColumnDefinitions="*,*">
+            <!-- Segmented pair: even gap, equal height, centered labels -->
+            <Grid ColumnDefinitions="*,*" MinHeight="36">
               <Button x:Name="SaveOneBtn" Classes="quiet" Content="Save one"
                       IsEnabled="False" Click="SaveOne_Click" Margin="0,0,5,0"
-                      HorizontalAlignment="Stretch" Padding="14,8"/>
-              <Button Grid.Column="1" x:Name="CaptionAllBtn" Classes="quiet" Content="Caption sel"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+              <Button Grid.Column="1" x:Name="CaptionAllBtn" Classes="quiet"
+                      Content="Caption sel"
                       IsEnabled="False" Click="CaptionAll_Click" Margin="5,0,0,0"
-                      HorizontalAlignment="Stretch" Padding="14,8"/>
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
             </Grid>
 
-            <Button x:Name="DownloadModelBtn" Classes="quiet" Padding="14,8"
+            <Button x:Name="DownloadModelBtn" Classes="quiet"
                     Content="Download caption model" HorizontalAlignment="Stretch"
                     Click="DownloadModel_Click"
                     ToolTip.Tip="Gemma 4 E2B for captions. AI select uses YOLO (~10 MB)."/>

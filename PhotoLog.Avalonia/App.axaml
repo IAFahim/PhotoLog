@@ -131,7 +131,7 @@
       <Setter Property="Foreground" Value="{DynamicResource BrushText}"/>
     </Style>
 
-    <!-- White pills, hairline border, mono label -->
+    <!-- White pills, hairline border, mono label. Content always dead-center. -->
     <Style Selector="Button">
       <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
       <Setter Property="Padding" Value="{DynamicResource PadButton}"/>
@@ -141,6 +141,9 @@
       <Setter Property="Foreground" Value="{DynamicResource BrushText}"/>
       <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
       <Setter Property="FontSize" Value="12"/>
+      <Setter Property="MinHeight" Value="36"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
     <Style Selector="Button:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
@@ -164,18 +167,27 @@
     <Style Selector="Button.quiet:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
     </Style>
-    <!-- Icon-only pills stay square-ish and evenly gapped -->
+    <!-- Icon-only: fixed square so × / ↻ sit on the same baseline as 36px fields -->
     <Style Selector="Button.icon">
-      <Setter Property="Padding" Value="10"/>
-      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Width" Value="36"/>
+      <Setter Property="Height" Value="36"/>
+      <Setter Property="MinWidth" Value="36"/>
+      <Setter Property="MinHeight" Value="36"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
     <!-- FluentTheme's disabled fill is a flat #CCCCCC — off-palette. Keep it on-surface. -->
     <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
       <Setter Property="Foreground" Value="{DynamicResource BrushDim}"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
+    <!-- Single-line fields: text + placeholder sit on the vertical centerline. -->
     <Style Selector="TextBox">
       <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
@@ -184,7 +196,10 @@
       <Setter Property="Foreground" Value="{DynamicResource BrushText}"/>
       <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="MinHeight" Value="36"/>
+      <Setter Property="Padding" Value="12,0"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
     </Style>
     <Style Selector="TextBox:disabled">
       <Setter Property="Foreground" Value="{DynamicResource BrushDim}"/>
@@ -193,6 +208,12 @@
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>
     </Style>
+    <!-- Multi-line (AcceptsReturn): keep top-aligned so wrap starts under the top padding. -->
+    <Style Selector="TextBox.multiline">
+      <Setter Property="MinHeight" Value="56"/>
+      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="VerticalContentAlignment" Value="Top"/>
+    </Style>
     <Style Selector="ComboBox">
       <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
       <Setter Property="Background" Value="{DynamicResource BrushField}"/>
@@ -200,12 +221,15 @@
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="MinHeight" Value="34"/>
-      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="MinHeight" Value="36"/>
+      <Setter Property="Padding" Value="12,0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
     <Style Selector="ComboBoxItem">
       <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
       <Setter Property="FontSize" Value="12"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
     <Style Selector="NumericUpDown">
       <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
@@ -214,16 +238,18 @@
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="MinHeight" Value="40"/>
-      <Setter Property="MinWidth" Value="128"/>
-      <!-- Leave room for spinner + signed digits; tight padding + fixed Height was clipping. -->
-      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="MinHeight" Value="36"/>
+      <Setter Property="MinWidth" Value="72"/>
+      <Setter Property="Padding" Value="8,0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
-    <!-- Inner text box of NumericUpDown must not clip "-20". -->
+    <!-- Inner text: center digits; leave room for spinner so "-20" never clips. -->
     <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox">
-      <Setter Property="MinWidth" Value="48"/>
-      <Setter Property="Padding" Value="6,4"/>
-      <Setter Property="HorizontalContentAlignment" Value="Right"/>
+      <Setter Property="MinWidth" Value="36"/>
+      <Setter Property="Padding" Value="4,0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
     <Style Selector="CalendarDatePicker">
       <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
@@ -232,7 +258,23 @@
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="MinHeight" Value="34"/>
+      <Setter Property="MinHeight" Value="36"/>
+      <Setter Property="Padding" Value="12,0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <!-- Calendar glyph button: sit on the field centerline, muted stroke -->
+    <Style Selector="CalendarDatePicker /template/ Button#PART_Button">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Margin" Value="0,0,8,0"/>
+      <Setter Property="Foreground" Value="{DynamicResource BrushMuted}"/>
+    </Style>
+    <Style Selector="CalendarDatePicker /template/ TextBox#PART_TextBox">
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Padding" Value="12,0"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
     </Style>
     <Style Selector="TimePicker">
       <Setter Property="CornerRadius" Value="{DynamicResource RadControl}"/>
@@ -241,7 +283,22 @@
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="MinHeight" Value="34"/>
+      <Setter Property="MinHeight" Value="36"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <!-- TimePicker host TextBlocks: Fluent defaults 0,3,0,6 which sits text high.
+         Zero the asymmetric padding and center each segment. -->
+    <Style Selector="TimePicker /template/ TextBlock">
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="FontFamily" Value="{DynamicResource FontMono}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="TimePicker /template/ Border">
+      <Setter Property="VerticalAlignment" Value="Stretch"/>
     </Style>
     <!-- TimePicker's inner segmented group: pills, hairline dividers, no accent fill -->
     <Style Selector="TimePicker /template/ Rectangle">
